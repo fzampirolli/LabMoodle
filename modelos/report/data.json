@@ -1,0 +1,24 @@
+{
+    "startDate": "2024-02-05",
+    "endDate": "2024-05-07",
+    "filter_field": "Tudo",
+    "min_absences": "14",
+    "uploadDir": ".\/tmp\/2024-04-15_18-57-08\/uploads\/",
+    "reportDir": ".\/tmp\/2024-04-15_18-57-08\/report\/",
+    "csvPath": ".\/tmp\/2024-04-15_18-57-08\/uploads\/logs_PI-2024.1-Zampirolli_20240414-2259.csv",
+    "xlsPath": ".\/tmp\/2024-04-15_18-57-08\/uploads\/notas_BCM0505-22_Omitido-22SA_20241.xls.xls",
+    "classes": [
+        {
+            "day": "1",
+            "hour": "8:00",
+            "duration": "2:00",
+            "ipPrefix": "172.17.14"
+        },
+        {
+            "day": "3",
+            "hour": "10:00",
+            "duration": "2:00",
+            "ipPrefix": "172.17.14"
+        }
+    ]
+}
