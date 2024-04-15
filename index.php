@@ -248,8 +248,8 @@
 
         <hr />
         <footer>
-            <p>Enviar sugestões de melhoria para <a href="mailto:fzampirolli@ufabc.edu.br">fzampirolli@ufabc.edu.br</a>.</p>
-            <p>Visite nosso projeto no GitHub: <a href="https://github.com/fzampirolli/LabMoodle">https://github.com/fzampirolli/LabMoodle</a></p>
+            <p>Enviar sugestões de melhoria para <a href="mailto:fzampirolli@ufabc.edu.br">fzampirolli@ufabc.edu.br</a><br>
+            Visite o projeto no GitHub: <a href="https://github.com/fzampirolli/LabMoodle">https://github.com/fzampirolli/LabMoodle</a></p>
         </footer>
 
     </div>
