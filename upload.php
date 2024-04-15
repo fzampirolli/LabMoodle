@@ -86,17 +86,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["csvFile"]) && isset($
     // Move os arquivos e verifica se foram movidos com sucesso
     $csvPath = moveFile($csvFile, $uploadDir);
     $xlsPath = moveFile($xlsFile, $uploadDir);
-//    $aux = str_replace("'", "", $xlsPath);
-//    rename($xlsPath, $aux);
-//    $xlsPath = $aux;
+    //    $aux = str_replace("'", "", $xlsPath);
+    //    rename($xlsPath, $aux);
+    //    $xlsPath = $aux;
 
 
 
     // Verifica se os arquivos foram movidos com sucesso
     if ($csvPath && $xlsPath) {
         echo "<h1>Arquivos enviados com sucesso!</h1>";
-//        echo "Arquivo CSV: " . $csvPath . "<br>";
-//        echo "Arquivo XLS: " . $xlsPath . "<br>";
+        //        echo "Arquivo CSV: " . $csvPath . "<br>";
+        //        echo "Arquivo XLS: " . $xlsPath . "<br>";
 
         $data = [
             'startDate' => $startDate,
@@ -112,27 +112,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_FILES["csvFile"]) && isset($
 
         $json = json_encode($data, JSON_PRETTY_PRINT);
 
-	chmod($xlsPath, 0777);
-	chmod($csvPath, 0777);
+        chmod($xlsPath, 0777);
+        chmod($csvPath, 0777);
 
-// Set the path to the ssconvert executable (replace with your actual path)
-$ssconvertPath = '/usr/bin/ssconvert';
+        // Set the path to the ssconvert executable (replace with your actual path)
+        $ssconvertPath = '/usr/bin/ssconvert';
 
-// Build the command string
-$command = "$ssconvertPath --export-type=Gnumeric_stf:stf_csv $xlsPath $uploadDir/faltas.csv";
+        // Build the command string
+        $command = "$ssconvertPath --export-type=Gnumeric_stf:stf_csv $xlsPath $uploadDir/faltas.csv";
 
-// Execute the command
-$output = shell_exec($command);
+        // Execute the command
+        $output = shell_exec($command);
 
-// Handle the output
-if ($output === false) {
-  echo "Error: Failed to convert the XLS file.";
-}
-//} else {
-//  echo "Success: XLS file converted to CSV and saved to $uploadDir/faltas.csv";
-//}
+        // Handle the output
+        if ($output === false) {
+            echo "Error: Failed to convert the XLS file.";
+        }
+        //} else {
+        //  echo "Success: XLS file converted to CSV and saved to $uploadDir/faltas.csv";
+        //}
 
-//        echo "<pre>$json</pre>";
+        //        echo "<pre>$json</pre>";
 
         // Escreve o JSON em um arquivo no servidor
         file_put_contents($reportDir . 'data.json', $json);
@@ -160,7 +160,6 @@ if ($output === false) {
         } else {
             echo '<p style="color: #dc3545; text-align: center;">Erro ao compactar a pasta "report".</p>';
         }
-
     } else {
         echo "<h3>Erro ao enviar os arquivos. Certifique-se de que os arquivos CSV e XLS foram escolhidos corretamente.</h3>";
     }
@@ -231,5 +230,3 @@ echo "<p></p>
 // Executa o script bash para apagar arquivos antigos
 // $command = "bash ./delete_files_reports.sh";
 // $output2 = shell_exec($command);
-
-
