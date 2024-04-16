@@ -35,7 +35,7 @@ Fazer download do log da disciplina no Moodle
 
 # 👇️ Se quiser executar no console
 ```
- bash ./run_script.sh ./tmp/uploads/logs.csv ./tmp/*/uploads/notas.xls
+ bash ./run_script.sh ./tmp/*/uploads/logs.csv ./tmp/*/uploads/notas.xls
 ```
 
 # Verificar arquivos gerados
