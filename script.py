@@ -299,10 +299,10 @@ def desenhar_grafico(data, min_absences, filter_field, tipo, metrica):
     plt.title(titulo, fontsize=16)
     plt.xlabel('Aluno', fontsize=14)
     plt.ylabel(f'Número de {metrica.replace("_", " ")}', fontsize=14)
-
+    MAX_PRESENCA = data['Total_Presencas'].max()
     # Adicionar linha de corte horizontal vermelha (apenas para Total_Presencas)
     if metrica == 'Total_Presencas':
-        ax.axhline(y=min_absences, color='red', linestyle='--', label=f'Limite Mínimo de Presenças ({min_absences})')
+        ax.axhline(y=(MAX_PRESENCA-min_absences), color='red', linestyle='--', label=f'Limite Mínimo de Faltas ({min_absences})')
         ax.legend()
 
     # Adicionar rótulos com o número de presenças/acessos em cada barra

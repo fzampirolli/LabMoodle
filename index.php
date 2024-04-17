@@ -106,11 +106,12 @@
         <hr />
 
         <h4>Ver modelos de arquivos gerados na pasta <a href="modelos/report/" target="_blank">report</a>.
-            Os próximos passos ensinam como obter esses arquivos do Moodle.
-            Ao final desta página é possível gerar relatórios semelhantes às imagens
-            <a href="modelos/report/ex01a.jpg" target="_blank">ex01a.jpg</a>,
-            <a href="modelos/report/ex01b.jpg" target="_blank">ex01b.jpg</a> e
-            <a href="modelos/report/ex01c.jpg" target="_blank">ex01c.jpg</a>de forma automática.
+            Os próximos passos ensinam como obter esses arquivos.
+            Ao final desta página é possível gerar esses arquivos e um relatório semelhante às imagens
+            <a href="modelos/report/ex01a.png" target="_blank">ex01a</a>,
+            <a href="modelos/report/ex01b.png" target="_blank">ex01b</a> e
+            <a href="modelos/report/ex01c.png" target="_blank">ex01c</a> de forma automática.
+            
         </h4>
 
         <hr />
