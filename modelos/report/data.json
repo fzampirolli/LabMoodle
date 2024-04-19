@@ -3,6 +3,8 @@
     "endDate": "2024-05-07",
     "filter_field": "Tudo",
     "min_absences": "14",
+    "assign_O": "off",
+    "omit_data": "off",
     "uploadDir": ".\/tmp\/2024-04-15_18-57-08\/uploads\/",
     "reportDir": ".\/tmp\/2024-04-15_18-57-08\/report\/",
     "csvPath": ".\/tmp\/2024-04-15_18-57-08\/uploads\/logs_PI-2024.1-Zampirolli_20240414-2259.csv",

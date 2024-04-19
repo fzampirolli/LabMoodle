@@ -156,11 +156,6 @@
 
                 <br><br>
 
-                <label for="min_absences">Número mínimo de faltas após o término do curso:</label>
-                <input type="number" name="min_absences" id="min_absences" value="14" required>
-
-                <br><br>
-
                 <label for="filter_field">Filtrar o Log do Moodle pelo componente:</label>
                 <select id="filter_field" name="filter_field" required>
                     <option value="Tudo">Tudo</option>
@@ -171,6 +166,22 @@
                     <option value="Fórum">Fórum</option>
                     <option value="Questionário">Questionário</option>
                 </select>
+
+                <br><br>
+
+                <label for="min_absences">Número mínimo de faltas após o término do curso:</label>
+                <input type="number" name="min_absences" id="min_absences" value="14" required>
+
+                <br><br>
+
+    <label for="assign_O">Atribuir conceito "O" para reprovados por falta:</label>
+    <input type="checkbox" id="assign_O" name="assign_O">
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+<label for="omit_data">Omitir dados de alunos:</label>
+<input type="checkbox" id="omit_data" name="omit_data">
 
                 <hr>
                 <?php

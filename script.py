@@ -131,7 +131,12 @@ novo_cabecalho = [
     "Sit.",
 ]
 
-df = df.drop(df.columns[-1], axis=1)  # remove a última coluna
+if len(df.columns) == 7:
+    df = df.drop(df.columns[-1], axis=1)  # remove a última coluna
+else:
+    print("<h1>Não editar os arquivos gerados pelo SIGAA!</h1>")
+    exit(1)
+
 df = df.dropna()
 
 df.columns = novo_cabecalho
@@ -139,6 +144,15 @@ df.loc[:, "Faltas"] = 0
 
 # Salvar o DataFrame final num arquivo CSV
 arq_faltas = os.path.join(data["reportDir"], "faltas_" + data["xlsPath"].split("/")[-1] + ".csv")
+if data["omit_data"] == "on":
+    # Criar dicionário de mapeamento (corrigido)
+    mapping_dict = dict(zip(df["Nome"], ["STUDENT" + str(i + 1) for i in range(1, len(df) + 1)]))
+
+    # Substituir os valores existentes pelos valores gerados automaticamente no primeiro DataFrame
+    df["Matrícula"] = [str(i + 1) for i in range(len(df))]
+    df["Nome"] = ["STUDENT" + str(i + 1) for i in range(len(df))]
+    df["E-mail"] = ["email" + str(i + 1) + "@example.com" for i in range(len(df))]
+
 df.to_csv(arq_faltas, index=False)
 
 ########################################################################
@@ -151,6 +165,25 @@ df_logs = pd.read_csv(data["csvPath"])
 # Deixar nomes em maúsculo
 df_logs["Nome completo"] = df_logs["Nome completo"].str.upper()
 df_logs["Hora"] = pd.to_datetime(df_logs["Hora"], format="%d/%m/%y, %H:%M:%S")
+
+if data["omit_data"] == "on":
+    # Omitir valores
+    df_logs["Usuário afetado"] = "-"
+    df_logs["Descrição"] = "-"
+
+    # Substituir endereços IP que não começam com "172.17.14" por "omitted"
+    df_logs.loc[
+        ~df_logs["endereço IP"].astype(str).str.startswith("172.17.14").fillna(False), "endereço IP"] = "omitted"
+
+    # Substituir nomes completos conforme o mapeamento do dicionário
+    df_logs["Nome completo"] = df_logs["Nome completo"].map(mapping_dict).fillna(df_logs["Nome completo"])
+
+    # Remover as linhas onde a coluna "Nome completo" não começa com "STUDENT"
+    df_logs = df_logs[df_logs["Nome completo"].str.startswith("STUDENT")]
+
+    # Salvar o DataFrame modificado em um arquivo CSV
+    arq_logs = os.path.join(data["reportDir"], "logs_omitted_" + data["csvPath"].split("/")[-1] + ".csv")
+    df_logs.to_csv(arq_logs, index=False)
 
 if data["filter_field"] != 'Tudo':
     df_logs = df_logs[df_logs['Componente'] == data["filter_field"]]
@@ -239,6 +272,15 @@ MAX_FALTAS = df_lista_presenca['Total_Presencas'].max()
 # Calcula o número de faltas para cada aluno e atualiza o DataFrame df_lista_participa
 df_lista_presenca['Faltas'] = MAX_FALTAS - df_lista_presenca['Total_Presencas']
 
+# Realizar a junção dos DataFrames usando a coluna 'Nome' como chave
+df_merged = pd.merge(df_lista_presenca, df_faltas[['Nome', 'Resultado']], on='Nome', how='left')
+
+# Criar a nova coluna 'Conceito' em df_merged
+df_merged['Conceito'] = df_merged['Resultado']
+
+# Atualizar o DataFrame original df_lista_presenca com a nova coluna 'Conceito'
+df_lista_presenca = df_merged.drop('Resultado', axis=1)
+
 # salva arquivo
 df_lista_presenca.to_csv(arq_lista_presenca, index=False)
 
@@ -286,29 +328,34 @@ def desenhar_grafico(data, min_absences, filter_field, tipo, metrica):
 
     # Criar o gráfico de barras
     plt.figure(figsize=(20, 12))
-    ax = sns.barplot(x=coluna_x, y=coluna_y, data=data, palette=cores)
+    #ax = sns.barplot(x=coluna_x, y=coluna_y, data=data, palette=cores)
+    ax = sns.barplot(x=coluna_x, y=coluna_y, hue=coluna_x, data=data, palette=cores, legend=False)
 
     # Adicionar grid apenas na horizontal
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     # Definir título e rótulos dos eixos
-    titulo = f'Número de {metrica.replace("_", " ")} por Aluno'
+    titulo = f'Número de {metrica.replace("_", " ").replace("ca", "ça")} por Aluno'
     if filter_field != 'Tudo':
         titulo += f' (filtro: {filter_field})'
 
     plt.title(titulo, fontsize=16)
     plt.xlabel('Aluno', fontsize=14)
-    plt.ylabel(f'Número de {metrica.replace("_", " ")}', fontsize=14)
+    plt.ylabel(f'Número de {metrica.replace("_", " ").replace("ca", "ça")}', fontsize=14)
     MAX_PRESENCA = data['Total_Presencas'].max()
     # Adicionar linha de corte horizontal vermelha (apenas para Total_Presencas)
     if metrica == 'Total_Presencas':
-        ax.axhline(y=(MAX_PRESENCA-min_absences), color='red', linestyle='--', label=f'Limite Mínimo de Faltas ({min_absences})')
+        ax.axhline(y=(MAX_PRESENCA - min_absences), color='red', linestyle='--',
+                   label=f'Limite Mínimo de Faltas ({min_absences})')
         ax.legend()
 
     # Adicionar rótulos com o número de presenças/acessos em cada barra
     if coluna_x == 'Nome':
         for index, row in data.iterrows():
-            ax.text(index, row[coluna_y] + 0.1, str(row[coluna_y]), ha='center', va='bottom', fontsize=8)
+            conc = ""
+            if str(row["Conceito"]) != "-":
+                conc = ": " + str(row["Conceito"])
+            ax.text(index, row[coluna_y] + 0.1, str(row[coluna_y]) + conc, ha='center', va='bottom', fontsize=8)
 
     # Ajustar rotação dos rótulos do eixo x
     plt.xticks(rotation=45, ha='right', fontsize=10)
@@ -316,7 +363,6 @@ def desenhar_grafico(data, min_absences, filter_field, tipo, metrica):
     plt.tight_layout()
     plt.savefig(f"{userPath}report/alunos_{metrica}_{tipo}.png", dpi=200, bbox_inches="tight")
     plt.close()
-
 
 min_absences = int(data["min_absences"])
 
@@ -345,8 +391,9 @@ for z, linha in df_faltas.iterrows():  # para cada aluno da turma
     # if linha[3] in "ABCDF-":
     linha = linha.tolist()
     if linha[4] > int(data["min_absences"]):
-        df_faltas.loc[df_faltas['Nome'] == linha[1], 'Resultado'] = 'O'
-        linha[3] = 'O'
+        if data["assign_O"] == "on":
+            df_faltas.loc[df_faltas['Nome'] == linha[1], 'Resultado'] = 'O'
+            linha[3] = 'O'
         print(f"{z + 1:>3} {linha[0]:>10} {linha[1]:<40} {linha[2]:>40}", end="  ")
         print(f"{linha[3]:^8}  {linha[4]:^3}")
 df_faltas.to_csv(arq_faltas, index=False)

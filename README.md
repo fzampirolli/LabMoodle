@@ -33,11 +33,12 @@ Fazer download da turma no SIGAA
 
 Fazer download do log da disciplina no Moodle
 
-# 👇️ Se quiser executar no console
+
+# 👇️ Executar no console
 ```
- bash ./run_script.sh ./tmp/*/uploads/logs.csv ./tmp/*/uploads/notas.xls
+ bash ./run_script.sh ./tmp/uploads/logs.csv ./tmp/uploads/notas_BCM0505-22_TDA2BCM0505-22SA_20241.xls.xls
 ```
 
 # Verificar arquivos gerados
 
-Ver arquivos gerados em `./tmp/*/report`.
+Ver arquivos gerados em `./tmp/report`.
