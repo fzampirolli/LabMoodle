@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 import json
 import pandas as pd
 import sys
-import subprocess
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
@@ -171,9 +170,10 @@ if data["omit_data"] == "on":
     df_logs["Usuário afetado"] = "-"
     df_logs["Descrição"] = "-"
 
-    # Substituir endereços IP que não começam com "172.17.14" por "omitted"
+    # Substituir endereços IP que não começam com data["classes"][0]["ipPrefix"] por "omitted"
     df_logs.loc[
-        ~df_logs["endereço IP"].astype(str).str.startswith("172.17.14").fillna(False), "endereço IP"] = "omitted"
+        ~df_logs["endereço IP"].astype(str).str.startswith(data["classes"][0]["ipPrefix"]).fillna(
+            False), "endereço IP"] = "omitted"
 
     # Substituir nomes completos conforme o mapeamento do dicionário
     df_logs["Nome completo"] = df_logs["Nome completo"].map(mapping_dict).fillna(df_logs["Nome completo"])
@@ -245,6 +245,8 @@ for z, linha in df_faltas.iterrows():  ###### para cada aluno da turma
                     nova_linha[dia_aula.split()[0]] = len(filtro)
                     print(len(filtro), end=" ")
 
+        nova_linha["Acessos_Sem_Filtros"] = int(len(df_filtro))
+
     print()
     # Converter a nova linha em DataFrame
     nova_linha_df = pd.DataFrame([nova_linha])
@@ -264,7 +266,7 @@ for col_antiga, col_nova in novos_nomes_colunas.items():
     df_lista_presenca.rename(columns={col_antiga: col_nova}, inplace=True)
 
 # df_lista_participa calcula a Total_Presencas por Nome
-df_lista_presenca['Total_Presencas'] = 2 * (df_lista_presenca.iloc[:, 3:] > 0).sum(axis=1)
+df_lista_presenca['Total_Presencas'] = 2 * (df_lista_presenca.iloc[:, 3:-1] > 0).sum(axis=1)
 
 # número máximo de presença
 MAX_FALTAS = df_lista_presenca['Total_Presencas'].max()
@@ -284,12 +286,10 @@ df_lista_presenca = df_merged.drop('Resultado', axis=1)
 # salva arquivo
 df_lista_presenca.to_csv(arq_lista_presenca, index=False)
 
+
 ########################################################################
 # Plotar gráfico RA vs Participação
 ########################################################################
-
-import numpy as np
-
 
 def somar_acessos(linha):
     # Verificar se a entrada é um DataFrame ou uma Series
@@ -298,7 +298,7 @@ def somar_acessos(linha):
         linha = pd.DataFrame(linha).T
 
     # Obter as colunas de acessos
-    acessos = linha.iloc[:, 4:-2]  # Excluir as duas últimas colunas
+    acessos = linha.iloc[:, 4:-4]  # Excluir as duas últimas colunas
 
     # Converter os valores das colunas de acessos para numéricos
     # Substituir NaN por 0 antes da conversão
@@ -316,63 +316,109 @@ df_lista_presenca['Total_Acessos'] = df_lista_presenca.apply(somar_acessos, axis
 
 # print(df_lista_presenca.head())
 
-def desenhar_grafico(data, min_absences, filter_field, tipo, metrica):
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib import patches
+
+def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
     # Definir uma paleta de cores mais agradável
     cores = sns.color_palette("husl", len(data))
 
-    # Definir o nome da coluna de interesse para o eixo x
-    coluna_x = 'RA' if tipo == 'RA' else 'Nome'
-
-    # Definir o nome da métrica para o eixo y
-    coluna_y = 'Total_Presencas' if metrica == 'Total_Presencas' else 'Total_Acessos'
-
     # Criar o gráfico de barras
     plt.figure(figsize=(20, 12))
-    #ax = sns.barplot(x=coluna_x, y=coluna_y, data=data, palette=cores)
     ax = sns.barplot(x=coluna_x, y=coluna_y, hue=coluna_x, data=data, palette=cores, legend=False)
+    # Calcular a largura total do eixo x
+    largura_total_x = ax.get_xlim()[1] - ax.get_xlim()[0]
+    # Calcular o número de barras (categorias) no eixo x
+    num_barras = len(data[coluna_x].unique())
+    # Calcular a largura de cada barra
+    largura_barra = 0.3*(largura_total_x / num_barras)
 
     # Adicionar grid apenas na horizontal
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     # Definir título e rótulos dos eixos
-    titulo = f'Número de {metrica.replace("_", " ").replace("ca", "ça")} por Aluno'
+    titulo = f'{coluna_y.replace("_", " ").replace("ca", "ça")} por {coluna_x} de Aluno'
     if filter_field != 'Tudo':
         titulo += f' (filtro: {filter_field})'
 
+    if coluna_y == 'Acessos_Sem_Filtros':
+        titulo += ' - Hachura indica acessos fora da aula'
+
+        print( titulo )
+
     plt.title(titulo, fontsize=16)
-    plt.xlabel('Aluno', fontsize=14)
-    plt.ylabel(f'Número de {metrica.replace("_", " ").replace("ca", "ça")}', fontsize=14)
-    MAX_PRESENCA = data['Total_Presencas'].max()
+    plt.xlabel(f'{coluna_x} de Aluno', fontsize=14)
+    plt.ylabel(f'Número de {coluna_y.replace("_", " ").replace("ca", "ça")}', fontsize=14)
     # Adicionar linha de corte horizontal vermelha (apenas para Total_Presencas)
-    if metrica == 'Total_Presencas':
+    if coluna_y == 'Total_Presencas':
+        MAX_PRESENCA = data[coluna_y].max()
         ax.axhline(y=(MAX_PRESENCA - min_absences), color='red', linestyle='--',
                    label=f'Limite Mínimo de Faltas ({min_absences})')
         ax.legend()
 
+    max_y = data[coluna_y].max()
+
     # Adicionar rótulos com o número de presenças/acessos em cada barra
-    if coluna_x == 'Nome':
+    if coluna_x == "RA":
+        cont = 0
+        for index, row in data.sort_values(by='RA').iterrows():
+            conc = ""
+            if str(row["Conceito"]) != "-":
+                conc = ": " + str(row["Conceito"])
+            ax.text(cont, row[coluna_y] + 0.1, str(row[coluna_y]) + conc, ha='center', va='bottom',
+                    fontsize=8)
+
+            if coluna_y == 'Acessos_Sem_Filtros' and row['Total_Acessos'] > 0:
+                plt.hlines(y=row['Total_Acessos'], xmin=cont - largura_barra, xmax=cont + largura_barra, color='red')
+                ax.text(cont, row['Total_Acessos'] - int(max_y*0.02), str(int(row[coluna_y])), ha='center', va='bottom', fontsize=8)
+
+                # Hachurar a área entre y=row['Total_Acessos'] e y=row[coluna_y]
+                plt.fill_between([cont - largura_barra, cont + largura_barra], row['Total_Acessos'], row[coluna_y], color='red', alpha=0.3)
+
+
+            cont += 1
+    else:
         for index, row in data.iterrows():
             conc = ""
             if str(row["Conceito"]) != "-":
                 conc = ": " + str(row["Conceito"])
             ax.text(index, row[coluna_y] + 0.1, str(row[coluna_y]) + conc, ha='center', va='bottom', fontsize=8)
 
+            if coluna_y == 'Acessos_Sem_Filtros' and row['Total_Acessos'] > 0:
+                plt.hlines(y=row['Total_Acessos'], xmin=index - largura_barra, xmax=index + largura_barra, color='red')
+                ax.text(index, row['Total_Acessos'] - int(max_y*0.02), str(int(row[coluna_y])), ha='center', va='bottom', fontsize=8)
+
+                # Hachurar a área entre y=row['Total_Acessos'] e y=row[coluna_y]
+                plt.fill_between([index - largura_barra, index + largura_barra], row['Total_Acessos'], row[coluna_y], color='red', alpha=0.3)
+
+
     # Ajustar rotação dos rótulos do eixo x
     plt.xticks(rotation=45, ha='right', fontsize=10)
 
     plt.tight_layout()
-    plt.savefig(f"{userPath}report/alunos_{metrica}_{tipo}.png", dpi=200, bbox_inches="tight")
+    nome_arquivo = f"{userPath}report/alunos_{coluna_y}_{coluna_x}.png"
+    plt.savefig(nome_arquivo, dpi=200, bbox_inches="tight")
     plt.close()
+    print("Arquivo gerado:", nome_arquivo)
+
+
 
 min_absences = int(data["min_absences"])
 
 filter_field = data["filter_field"]
 
 # Exemplo de uso:
-desenhar_grafico(df_lista_presenca, min_absences, filter_field, tipo='Nome', metrica='Total_Presencas')
-desenhar_grafico(df_lista_presenca, min_absences, filter_field, tipo='Nome', metrica='Total_Acessos')
-desenhar_grafico(df_lista_presenca, min_absences, filter_field, tipo='RA', metrica='Total_Presencas')
-desenhar_grafico(df_lista_presenca, min_absences, filter_field, tipo='RA', metrica='Total_Acessos')
+desenhar_grafico(df_lista_presenca, min_absences, filter_field, 'Total_Presencas', 'Nome')
+desenhar_grafico(df_lista_presenca, min_absences, filter_field, 'Total_Presencas', 'RA')
+desenhar_grafico(df_lista_presenca, min_absences, filter_field, 'Total_Acessos', 'Nome')
+desenhar_grafico(df_lista_presenca, min_absences, filter_field, 'Total_Acessos', 'RA')
+desenhar_grafico(df_lista_presenca, min_absences, filter_field, 'Acessos_Sem_Filtros', 'Nome')
+desenhar_grafico(df_lista_presenca, min_absences, filter_field, 'Acessos_Sem_Filtros', 'RA')
 
 ########################################################################
 # Atualiza colunas Faltas Resultado em df_faltas

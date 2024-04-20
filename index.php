@@ -109,9 +109,10 @@
             Os próximos passos ensinam como obter esses arquivos.
             Ao final desta página é possível gerar esses arquivos e um relatório semelhante às imagens
             <a href="modelos/report/ex01a.png" target="_blank">ex01a</a>,
-            <a href="modelos/report/ex01b.png" target="_blank">ex01b</a> e
-            <a href="modelos/report/ex01c.png" target="_blank">ex01c</a> de forma automática.
-            
+            <a href="modelos/report/ex01b.png" target="_blank">ex01b</a>,
+            <a href="modelos/report/ex01c.png" target="_blank">ex01c</a> e
+            <a href="modelos/report/ex01d.png" target="_blank">ex01d</a> de forma automática.
+
         </h4>
 
         <hr />

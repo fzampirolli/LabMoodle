@@ -193,8 +193,10 @@ echo "
 // Crie a string do caminho do relatório para cada imagem
 $alunosTotalAcessosNome = $reportDir . "alunos_Total_Acessos_Nome.png";
 $alunosTotalPresencasNome = $reportDir . "alunos_Total_Presencas_Nome.png";
+$alunosAcessosSemFiltrosNome = $reportDir . "alunos_Acessos_Sem_Filtros_Nome.png";
 $alunosTotalAcessosRA = $reportDir . "alunos_Total_Acessos_RA.png";
 $alunosTotalPresencasRA = $reportDir . "alunos_Total_Presencas_RA.png";
+$alunosAcessosSemFiltrosRA = $reportDir . "alunos_Acessos_Sem_Filtros_RA.png";
 
 echo "<p></p>
 <div style='background-color: #f9f9f9; font-size:9px; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 900px; width: 95%; margin: 0 auto;'>
@@ -212,6 +214,11 @@ echo "<p></p>
       </div>
 
       <div style=\"margin: 10px;\">
+        <img src=\"$alunosAcessosSemFiltrosNome\" alt=\"Alunos - Total Geral Acessos - Nome\" style=\"max-width: 800px; height: auto;\">
+        <p style=\"text-align: center;\">Alunos - Total Presenças - RA</p>
+      </div>
+
+      <div style=\"margin: 10px;\">
         <img src=\"$alunosTotalAcessosRA\" alt=\"Alunos - Total Acessos - RA\" style=\"max-width: 800px; height: auto;\">
         <p style=\"text-align: center;\">Alunos - Total Acessos - RA</p>
       </div>
@@ -220,6 +227,12 @@ echo "<p></p>
         <img src=\"$alunosTotalPresencasRA\" alt=\"Alunos - Total Presenças - RA\" style=\"max-width: 800px; height: auto;\">
         <p style=\"text-align: center;\">Alunos - Total Presenças - RA</p>
       </div>
+
+      <div style=\"margin: 10px;\">
+        <img src=\"$alunosAcessosSemFiltrosRA\" alt=\"Alunos - Total Geral Acessos - RA\" style=\"max-width: 800px; height: auto;\">
+        <p style=\"text-align: center;\">Alunos - Total Presenças - RA</p>
+      </div>
+
     </div>
   </p>
 </div>

@@ -5,20 +5,20 @@
     "min_absences": "14",
     "assign_O": "off",
     "omit_data": "off",
-    "uploadDir": ".\/tmp\/2024-04-15_18-57-08\/uploads\/",
-    "reportDir": ".\/tmp\/2024-04-15_18-57-08\/report\/",
-    "csvPath": ".\/tmp\/2024-04-15_18-57-08\/uploads\/logs_PI-2024.1-Zampirolli_20240414-2259.csv",
-    "xlsPath": ".\/tmp\/2024-04-15_18-57-08\/uploads\/notas_BCM0505-22_Omitido-22SA_20241.xls.xls",
+    "uploadDir": ".\/tmp\/2024-04-20_08-55-52\/uploads\/",
+    "reportDir": ".\/tmp\/2024-04-20_08-55-52\/report\/",
+    "csvPath": ".\/tmp\/2024-04-20_08-55-52\/uploads\/logs_PI-2024.1-Zampirolli_20240414-2259.csv",
+    "xlsPath": ".\/tmp\/2024-04-20_08-55-52\/uploads\/notas_BCM0505-omitido-22SA_20241-OK2.xls",
     "classes": [
         {
             "day": "1",
-            "hour": "8:00",
+            "hour": "10:00",
             "duration": "2:00",
             "ipPrefix": "172.17.14"
         },
         {
             "day": "3",
-            "hour": "10:00",
+            "hour": "8:00",
             "duration": "2:00",
             "ipPrefix": "172.17.14"
         }
