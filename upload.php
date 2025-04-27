@@ -142,7 +142,7 @@ if ($output === false) {
         // Escreve o JSON em um arquivo no servidor
         file_put_contents($reportDir . 'data.json', $json);
 
-        // echo "<pre>bash ./run_script.sh $csvPath $xlsPath</pre>";
+        echo "<pre>bash ./run_script.sh $csvPath $xlsPath</pre>";
 
         // Executa o script bash após o envio bem-sucedido dos arquivos
         $command = "bash ./run_script.sh $csvPath $xlsPath";
@@ -179,7 +179,7 @@ echo '<button onclick="history.back()" style="background-color: #007bff; color: 
 echo '</div>';
 
 echo "<hr>";
-echo "Todos os arquivos enviados/gerados são apagados do servidor a cada 120 segundos!<br>";
+echo "Todos os arquivos enviados/gerados são apagados do servidor a cada 5 minutos!<br>";
 
 echo "
 <div style='background-color: #f9f9f9; font-size:9px; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 900px; width: 95%; margin: 0 auto;'>

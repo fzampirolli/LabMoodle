@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# Define os diretórios onde as subpastas estão localizadas
-diretorio_reports="/var/www/html/LabMoodle/reports/"
-diretorio_tmp="/var/www/html/LabMoodle/tmp/"
+# *  *    * * *   root     /var/www/html/LabMoodle/delete_files_reports.sh
 
-# Define o tempo limite em segundos (120 segundos = 2 minutos)
-tempo_limite=30
+# Define o tempo limite em segundos (300 segundos = 5 minutos)
+tempo_limite=300
 
 # Função para excluir arquivos/pastas após o tempo limite
 excluir_itens() {
@@ -53,8 +51,20 @@ excluir_itens() {
     done
 }
 
-# Remove os arquivos após o tempo limite no diretório reports
-excluir_itens "$diretorio_reports" "$tempo_limite" false
+# /var/www/html/LabMoodle
 
-# Remove as pastas após o tempo limite no diretório tmp
+# Define os diretórios onde as subpastas estão localizadas
+diretorio_reports="/var/www/html/LabMoodle/reports/"
+diretorio_tmp="/var/www/html/LabMoodle/tmp/"
+
+excluir_itens "$diretorio_reports" "$tempo_limite" false
+excluir_itens "$diretorio_tmp" "$tempo_limite" true
+
+# /var/www/html/UAB
+
+# Define os diretórios onde as subpastas estão localizadas
+diretorio_reports="/var/www/html/UAB/reports/"
+diretorio_tmp="/var/www/html/UAB/tmp/"
+
+excluir_itens "$diretorio_reports" "$tempo_limite" false
 excluir_itens "$diretorio_tmp" "$tempo_limite" true

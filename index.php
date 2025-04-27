@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acompanhamento das Atividades dos Alunos no Moodle</title>
+    <title>Acompanhamento das Atividades dos Estudantes no Moodle</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #f9f3e3;
-            /* Fundo em tom de bege */
             margin: 0;
             padding: 0;
             display: flex;
@@ -20,7 +18,6 @@
 
         .container {
             background-color: #fffff5;
-            /* Cor de fundo bonita */
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             padding: 40px;
@@ -30,20 +27,18 @@
 
         h1 {
             color: #007bff;
-            /* Letras em tom de azul */
             margin-bottom: 20px;
         }
 
         p {
             color: #444;
-            /* Letras em tom de cinza */
             line-height: 1.6;
             margin-bottom: 15px;
         }
 
-        ul {
-            list-style-type: none;
-            padding: 0;
+        ul, ol {
+            padding-left: 20px;
+            margin-bottom: 20px;
         }
 
         li {
@@ -52,12 +47,16 @@
 
         a {
             color: #007bff;
-            /* Links em tom de azul */
             text-decoration: none;
         }
 
         a:hover {
             text-decoration: underline;
+        }
+
+        pre {
+            font-size: small;
+            color: #00ffff;
         }
 
         @media screen and (max-width: 800px) {
@@ -66,7 +65,6 @@
             }
         }
 
-        /* Novos estilos para a animação da lupa */
         .loader {
             position: relative;
             display: inline-block;
@@ -78,82 +76,63 @@
             animation: spin 1s linear infinite;
         }
 
-        /* Animação da lupa */
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Define o tamanho e a cor da fonte dentro da tag <pre> */
-        pre {
-            font-size: small;
-            /* ou tiny, smaller, smaller, smaller, large, larger, x-large */
-            color: #00ffff;
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 
 <body>
-
     <div class="container">
-        <h1>Acompanhamento das Atividades dos Alunos no Moodle</h1>
+        <h1>Acompanhamento das Atividades dos Estudantes no Moodle</h1>
 
         <hr />
 
-        <h4>Ver modelos de arquivos gerados na pasta <a href="modelos/report/" target="_blank">report</a>.
-            Os próximos passos ensinam como obter esses arquivos.
-            Ao final desta página é possível gerar esses arquivos e um relatório semelhante às imagens
+        <h4>
+            Ver modelos de arquivos gerados na pasta
+            <a href="modelos/report/" target="_blank">report</a>.
+            <br><br>
+            Ao final desta página é possível gerar arquivos semelhantes às imagens
             <a href="modelos/report/ex01a.png" target="_blank">ex01a</a>,
             <a href="modelos/report/ex01b.png" target="_blank">ex01b</a>,
             <a href="modelos/report/ex01c.png" target="_blank">ex01c</a> e
-            <a href="modelos/report/ex01d.png" target="_blank">ex01d</a> de forma automática.
-
+            <a href="modelos/report/ex01d.png" target="_blank">ex01d</a>.
         </h4>
 
         <hr />
 
         <h2>1) Log no Moodle</h2>
-
         <h3>Arquivo: logs.CSV</h3>
-
-        <p>Fazer download do log retirado da disciplina do Moodle.</p>
-
-
+        <p>Fazer download do log retirado da disciplina do Moodle:</p>
         <ol>
             <li>Ir em Disciplina +</li>
             <li>Engrenagem + Mais +</li>
             <li>Relatórios (Logs) +</li>
             <li>Obter estes logs +</li>
-            <li>Download do csv (final da página)</li>
+            <li>Download do CSV (final da página)</li>
         </ol>
 
-        <h2>2) Faltas dos Alunos no SIGAA</h2>
-
+        <h2>2) Faltas dos Estudantes no SIGAA</h2>
         <h3>Arquivo: faltas.XLS</h3>
-
         <ol>
-            <li>Acesse o <a href="https://sig.ufabc.edu.br/sigaa/verTelaLogin.do">SIGAA</a> e vá para o portal docente</li>
-            <li>Portal docente + Escolher a Turma + Alunos + Lançar Notas +</li>
-            <li>Exportar planilha. </li>
+            <li>Acesse o <a href="https://sig.ufabc.edu.br/sigaa/verTelaLogin.do" target="_blank">SIGAA</a> e vá para o portal docente</li>
+            <li>Escolha a Turma > Alunos > Lançar Notas</li>
+            <li>Exportar planilha</li>
         </ol>
 
         <hr />
 
         <form action="upload.php" method="post" enctype="multipart/form-data" onsubmit="showLoader()">
-            <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 900px; margin: 0 auto;">
-                <h2 style="color: #007bff; margin-bottom: 20px;">Configurar corretamente informações da disciplina:</h2>
+            <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+                <h2 style="color: #007bff;">Configurar informações da disciplina:</h2>
                 <hr>
 
                 <label for="start_date">Data de Início do Curso:</label>
-                <input type="date" name="start_date" id="start_date" value="2024-02-05" required>
+                <input type="date" name="start_date" id="start_date" value="2025-02-10" required>
 
                 <label for="end_date">Data de Término do Curso:</label>
-                <input type="date" name="end_date" id="end_date" value="2024-05-07" required>
+                <input type="date" name="end_date" id="end_date" value="2025-05-17" required>
 
                 <br><br>
 
@@ -170,47 +149,45 @@
 
                 <br><br>
 
-                <label for="min_absences">Número mínimo de faltas após o término do curso:</label>
-                <input type="number" name="min_absences" id="min_absences" value="14" required>
+                <label for="min_absences">Número mínimo de faltas permitidas:</label>
+                <input type="number" name="min_absences" id="min_absences" value="12" required style="width: 40px;">
 
                 <br><br>
 
-    <label for="assign_O">Atribuir conceito "O" para reprovados por falta:</label>
-    <input type="checkbox" id="assign_O" name="assign_O">
+                <label for="assign_O">Atribuir conceito "O" para reprovados por falta:</label>
+                <input type="checkbox" id="assign_O" name="assign_O">
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                &nbsp;&nbsp;&nbsp;
 
-<label for="omit_data">Omitir dados de alunos:</label>
-<input type="checkbox" id="omit_data" name="omit_data">
+                <label for="omit_data">Omitir dados de estudantes:</label>
+                <input type="checkbox" id="omit_data" name="omit_data">
 
                 <hr>
+
                 <?php
-                // Array para armazenar os nomes das aulas e seus respectivos IDs
-                $aulas = array(
-                    array("Aula 1", "1"),
-                    array("Aula 2", "2"),
-                );
+                $aulas = [
+                    ["Aula 1", "1"],
+                    ["Aula 2", "2"],
+                ];
                 ?>
 
-                <!-- Campos para as aulas -->
-                <?php foreach ($aulas as $aula) : ?>
+                <?php foreach ($aulas as $aula): ?>
                     <fieldset>
                         <legend><?php echo $aula[0]; ?></legend>
 
                         <label for="dayFieldId<?php echo $aula[1]; ?>">Dia:</label>
-                        <select name="dayFieldId<?php echo $aula[1]; ?>" id="dayFieldId<?php echo $aula[1]; ?>">
+                        <select name="dayFieldId<?php echo $aula[1]; ?>" id="dayFieldId<?php echo $aula[1]; ?>" >
                             <option value="x">Selecione um dia</option>
-                            <option value="0">segunda</option>
-                            <option value="1">terça</option>
-                            <option value="2">quarta</option>
-                            <option value="3">quinta</option>
-                            <option value="4">sexta</option>
-                            <option value="5">sábado</option>
+                            <option value="0">Segunda</option>
+                            <option value="1">Terça</option>
+                            <option value="2">Quarta</option>
+                            <option value="3">Quinta</option>
+                            <option value="4">Sexta</option>
+                            <option value="5">Sábado</option>
                         </select>
 
                         <label for="hourFieldId<?php echo $aula[1]; ?>">Horário:</label>
-                        <select name="hourFieldId<?php echo $aula[1]; ?>" id="hourFieldId<?php echo $aula[1]; ?>" required>
+                        <select name="hourFieldId<?php echo $aula[1]; ?>" id="hourFieldId<?php echo $aula[1]; ?>" required style="width: 60px;">
                             <option value="">Selecione um horário</option>
                             <option value="8" selected>08:00</option>
                             <option value="10">10:00</option>
@@ -221,7 +198,7 @@
                         </select>
 
                         <label for="durationFieldId<?php echo $aula[1]; ?>">Duração:</label>
-                        <select name="durationFieldId<?php echo $aula[1]; ?>" id="durationFieldId<?php echo $aula[1]; ?>" required>
+                        <select name="durationFieldId<?php echo $aula[1]; ?>" id="durationFieldId<?php echo $aula[1]; ?>" required style="width: 80px;">
                             <option value="">Selecione uma duração</option>
                             <option value="1">1 hora(s)</option>
                             <option value="2" selected>2 hora(s)</option>
@@ -229,48 +206,66 @@
                             <option value="4">4 hora(s)</option>
                             <option value="5">5 hora(s)</option>
                         </select>
-                        <br>
-                        <label for='ipPrefixFieldId<?php echo $aula[1]; ?>'>Prefixo dos IPs do Laboratório:</label>
-                        <input type='text' name='ipPrefixFieldId<?php echo $aula[1]; ?>' id='ipPrefixFieldId<?php echo $aula[1]; ?>' value='172.17.14' placeholder='Ex: 172.17.14' required>
+
+                        <label for="ipPrefixFieldId<?php echo $aula[1]; ?>">Prefixo dos IPs do Lab.:</label>
+                        <input type="text" name="ipPrefixFieldId<?php echo $aula[1]; ?>" id="ipPrefixFieldId<?php echo $aula[1]; ?>" value="172.17.14" placeholder="Ex: 172.17.14" required style="width: 80px;">
                     </fieldset>
                 <?php endforeach; ?>
 
             </div>
 
-            <p></p>
+            <br>
 
-            <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #007bff; margin-bottom: 20px;">Upload de arquivos para gerar os relatórios</h2>
+            <div style="background-color: #f9f9f9; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+                <h2 style="color: #007bff;">Upload de arquivos para gerar os relatórios</h2>
 
-                <p style="color: #444; line-height: 1.6; margin-bottom: 20px;">Selecione os arquivos nos formatos CSV e XLS obtidos nos dois passos anteriores. Em seguida, escolha enviar:</p>
+                <p>Selecione os arquivos obtidos nos dois passos anteriores:</p>
 
-                <label for="csvFile" style="color: #444;">Arquivo <b>logs.CSV</b>:</label><br>
-                <input type="file" name="csvFile" id="csvFile" accept=".csv" style="margin-bottom: 10px;"><br>
+                <label for="csvFile">Arquivo <b>logs.CSV</b>:</label><br>
+                <input type="file" name="csvFile" id="csvFile" accept=".csv"><br><br>
 
-                <label for="xlsFile" style="color: #444;">Arquivo <b>faltas.xls</b>:</label><br>
-                <input type="file" name="xlsFile" id="xlsFile" accept=".xls" style="margin-bottom: 20px;"><br>
+                <label for="xlsFile">Arquivo <b>faltas.XLS</b>:</label><br>
+                <input type="file" name="xlsFile" id="xlsFile" accept=".xls"><br><br>
 
                 <hr style="border-color: #ccc;">
 
-                <button type="submit" name="submit" style="background-color: #007bff; color: #fff; border: none; border-radius: 5px; padding: 10px 20px; cursor: pointer;">
-                    <span id="loader" style="display: none;" class="loader"></span> Enviar
+                <button type="submit" name="submit" style="background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                    <span id="loader" class="loader" style="display: none;"></span> Enviar
                 </button>
             </div>
         </form>
 
-
         <hr />
-        <footer>
-            <p>Enviar sugestões de melhoria para <a href="mailto:fzampirolli@ufabc.edu.br">fzampirolli@ufabc.edu.br</a><br>
-            Visite o projeto no GitHub: <a href="https://github.com/fzampirolli/LabMoodle">https://github.com/fzampirolli/LabMoodle</a></p>
+
+        <footer style="text-align: center; padding: 20px; font-size: 14px; border-top: 1px solid #dee2e6;">
+            <p>
+                Projeto em desenvolvimento e disponível em <a
+                    href="https://github.com/fzampirolli/LabMoodle" target="_blank">GitHub</a>.
+                Enviar sugestões de melhoria para <a href="mailto:fzampirolli@ufabc.edu.br"
+                    style="color: #007bff; text-decoration: none;">fzampirolli@ufabc.edu.br</a>.
+            </p>
+
+            <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank"
+                style="display: inline-block; margin: 10px;">
+                <img src="http://mctest.ufabc.edu.br:8000/static/agplv3.png" alt="Licença AGPL v3" width="50"
+                    style="border: none;">
+            </a>
+
+            <p style="margin: 10px 0;">
+                Copyright © 2024-2025 por
+                <a href="https://sites.google.com/site/fzampirolli/" target="_blank"
+                    style="color: #007bff; text-decoration: none;">Francisco de Assis Zampirolli</a> da
+                <a href="http://www.ufabc.edu.br" target="_blank"
+                    style="color: #007bff; text-decoration: none;">UFABC</a> e colaboradores.
+            </p>
         </footer>
 
     </div>
+
     <script>
         function showLoader() {
             document.getElementById("loader").style.display = "inline-block";
         }
     </script>
 </body>
-
 </html>

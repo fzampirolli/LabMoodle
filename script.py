@@ -319,10 +319,8 @@ df_lista_presenca['Total_Acessos'] = df_lista_presenca.apply(somar_acessos, axis
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-
-import matplotlib.pyplot as plt
-import seaborn as sns
 from matplotlib import patches
+import scipy.stats as stats
 
 def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
     # Definir uma paleta de cores mais agradável
@@ -344,12 +342,12 @@ def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
     # Definir título e rótulos dos eixos
     titulo = f'{coluna_y.replace("_", " ").replace("ca", "ça")} por {coluna_x} de Aluno'
     if filter_field != 'Tudo':
-        titulo += f' (filtro: {filter_field})'
+        titulo += f' (atividade: {filter_field})'
 
     if coluna_y == 'Acessos_Sem_Filtros':
         titulo += ' - Hachura indica acessos fora da aula'
 
-        print( titulo )
+        print(titulo)
 
     plt.title(titulo, fontsize=16)
     plt.xlabel(f'{coluna_x} de Aluno', fontsize=14)
@@ -367,35 +365,34 @@ def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
     if coluna_x == "RA":
         cont = 0
         for index, row in data.sort_values(by='RA').iterrows():
-            conc = ""
-            if str(row["Conceito"]) != "-":
-                conc = ": " + str(row["Conceito"])
-            ax.text(cont, row[coluna_y] + 0.1, str(row[coluna_y]) + conc, ha='center', va='bottom',
-                    fontsize=8)
+            conc = "" if str(row["Conceito"]) == "-" else ": " + str(row["Conceito"])
+            text_value = str(int(row[coluna_y])) if not np.isnan(row[coluna_y]) else "0"
+            conc = text_value + conc
+
+            ax.text(cont, row[coluna_y] + 0.1, conc, ha='center', va='bottom', fontsize=8)
 
             if coluna_y == 'Acessos_Sem_Filtros' and row['Total_Acessos'] > 0:
                 plt.hlines(y=row['Total_Acessos'], xmin=cont - largura_barra, xmax=cont + largura_barra, color='red')
-                ax.text(cont, row['Total_Acessos'] - int(max_y*0.02), str(int(row[coluna_y])), ha='center', va='bottom', fontsize=8)
+                ax.text(cont, row['Total_Acessos'] - int(max_y*0.02), str(int(row['Total_Acessos'])), ha='center', va='bottom', fontsize=8)
 
                 # Hachurar a área entre y=row['Total_Acessos'] e y=row[coluna_y]
                 plt.fill_between([cont - largura_barra, cont + largura_barra], row['Total_Acessos'], row[coluna_y], color='red', alpha=0.3)
 
-
             cont += 1
     else:
         for index, row in data.iterrows():
-            conc = ""
-            if str(row["Conceito"]) != "-":
-                conc = ": " + str(row["Conceito"])
-            ax.text(index, row[coluna_y] + 0.1, str(row[coluna_y]) + conc, ha='center', va='bottom', fontsize=8)
+            conc = "" if str(row["Conceito"]) == "-" else ": " + str(row["Conceito"])
+            text_value = str(int(row[coluna_y])) if not np.isnan(row[coluna_y]) else "0"
+            conc = text_value + conc
+
+            ax.text(index, row[coluna_y] + 0.1, conc, ha='center', va='bottom', fontsize=8)
 
             if coluna_y == 'Acessos_Sem_Filtros' and row['Total_Acessos'] > 0:
                 plt.hlines(y=row['Total_Acessos'], xmin=index - largura_barra, xmax=index + largura_barra, color='red')
-                ax.text(index, row['Total_Acessos'] - int(max_y*0.02), str(int(row[coluna_y])), ha='center', va='bottom', fontsize=8)
+                ax.text(index, row['Total_Acessos'] - int(max_y*0.02), str(int(row['Total_Acessos'])), ha='center', va='bottom', fontsize=8)
 
                 # Hachurar a área entre y=row['Total_Acessos'] e y=row[coluna_y]
                 plt.fill_between([index - largura_barra, index + largura_barra], row['Total_Acessos'], row[coluna_y], color='red', alpha=0.3)
-
 
     # Ajustar rotação dos rótulos do eixo x
     plt.xticks(rotation=45, ha='right', fontsize=10)
@@ -403,10 +400,72 @@ def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
     plt.tight_layout()
     nome_arquivo = f"{userPath}report/alunos_{coluna_y}_{coluna_x}.png"
     plt.savefig(nome_arquivo, dpi=200, bbox_inches="tight")
+
+    # --------------- NOVO: Gráfico boxplot de Conceito vs coluna_y ----------------
+    if 'Conceito' in data.columns:
+        # Ignorar alunos sem conceito ("-")
+        df_validos = data[data['Conceito'] != '-'].copy()
+        if not df_validos.empty:
+            conceito_map = {'F': 1, 'D': 2, 'C': 3, 'B': 4, 'A': 5}
+            df_validos['ConceitoNum'] = df_validos['Conceito'].map(conceito_map)
+
+            # Boxplot: conceito (eixo x) vs coluna_y (eixo y)
+            plt.figure(figsize=(10, 6))
+            sns.set(style="whitegrid")
+            sns.boxplot(x='Conceito', y=coluna_y, data=df_validos, order=['F','D','C','B','A'], palette="coolwarm")
+
+            plt.title(f'Distribuição de {coluna_y.replace("_"," ").replace("ca","ça")} por Conceito', fontsize=16)
+            plt.xlabel('Conceito', fontsize=14)
+            plt.ylabel(coluna_y.replace("_"," ").replace("ca","ça"), fontsize=14)
+
+            nome_boxplot = f"{userPath}report/boxplot_{coluna_y}_conceito.png"
+            plt.tight_layout()
+            plt.savefig(nome_boxplot, dpi=200, bbox_inches="tight")
+            plt.close()
+            print("Arquivo gerado:", nome_boxplot)
+
+    # --------------- NOVO: Gráfico de dispersão entre Conceito e coluna_y ----------------
+    if 'Conceito' in data.columns:
+        df_validos = data[data['Conceito'] != '-'].copy()
+        if not df_validos.empty:
+            conceito_map = {'F': 1, 'D': 2, 'C': 3, 'B': 4, 'A': 5}
+            df_validos['ConceitoNum'] = df_validos['Conceito'].map(conceito_map)
+
+            # Configurações do gráfico
+            plt.figure(figsize=(10, 6))
+            sns.set(style="whitegrid")
+
+            # Adicionando pontos de dispersão
+            scatter = sns.scatterplot(x='ConceitoNum', y=coluna_y, data=df_validos,
+                                      s=100, color='deepskyblue', alpha=0.8, edgecolor='black')
+
+            # Adicionando linha de regressão
+            slope, intercept, r_value, p_value, std_err = stats.linregress(df_validos['ConceitoNum'], df_validos[coluna_y])
+            r2 = r_value ** 2
+            plt.plot(df_validos['ConceitoNum'], intercept + slope * df_validos['ConceitoNum'],
+                     color='darkred', lw=2, label=f'Regressão Linear (R² = {r2:.2f})\np-value = {p_value:.3f}')
+
+            # Ajustando rótulos do eixo X para mostrar os conceitos
+            plt.xticks(ticks=[1, 2, 3, 4, 5], labels=['F', 'D', 'C', 'B', 'A'], fontsize=12)
+            plt.yticks(fontsize=12)
+
+            # Títulos e rótulos
+            plt.title(f'Correlação entre Conceito e {coluna_y.replace("_"," ").replace("ca","ça")}', fontsize=18, fontweight='bold')
+            plt.xlabel('Conceito', fontsize=14, fontweight='bold')
+            plt.ylabel(coluna_y.replace("_"," ").replace("ca","ça"), fontsize=14, fontweight='bold')
+
+            # Adicionando a legenda
+            plt.legend(loc='upper left', fontsize=12)
+
+            # Ajuste do layout e salvamento do gráfico
+            nome_disp = f"{userPath}report/dispersao_{coluna_y}_conceito.png"
+            plt.tight_layout()
+            plt.savefig(nome_disp, dpi=300, bbox_inches="tight")
+            plt.close()
+            print("Arquivo gerado:", nome_disp)
+
     plt.close()
     print("Arquivo gerado:", nome_arquivo)
-
-
 
 min_absences = int(data["min_absences"])
 
@@ -443,3 +502,5 @@ for z, linha in df_faltas.iterrows():  # para cada aluno da turma
         print(f"{z + 1:>3} {linha[0]:>10} {linha[1]:<40} {linha[2]:>40}", end="  ")
         print(f"{linha[3]:^8}  {linha[4]:^3}")
 df_faltas.to_csv(arq_faltas, index=False)
+
+
