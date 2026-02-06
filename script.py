@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 
 import warnings
 
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Verificar se a quantidade de argumentos está correta
@@ -170,10 +171,25 @@ if data["omit_data"] == "on":
     df_logs["Usuário afetado"] = "-"
     df_logs["Descrição"] = "-"
 
-    # Substituir endereços IP que não começam com data["classes"][0]["ipPrefix"] por "omitted"
+    # 1. Obter e limpar a lista de prefixos (ex: ['172.17.85', '2801:a4:101:214'])
+    ip_prefixes = data["classes"][0]["ipPrefix"].replace('\\/', '/').split(',')
+    ip_prefixes = [p.strip() for p in ip_prefixes]
+
+    # 2. Criar um padrão regex que represente "começa com prefixo1 OU prefixo2 OU..."
+    # O prefixo é escapado para garantir que pontos (.) sejam tratados como literais
+    import re
+    pattern = '^(' + '|'.join([re.escape(p) for p in ip_prefixes]) + ')'
+
+    # 3. Substituir endereços que NÃO condizem com o padrão por "omitted"
     df_logs.loc[
-        ~df_logs["endereço IP"].astype(str).str.startswith(data["classes"][0]["ipPrefix"]).fillna(
-            False), "endereço IP"] = "omitted"
+        ~df_logs["endereço IP"].astype(str).str.contains(pattern, regex=True, na=False),
+        "endereço IP"
+    ] = "omitted"
+
+    # # Substituir endereços IP que não começam com data["classes"][0]["ipPrefix"] por "omitted"
+    # df_logs.loc[
+    #     ~df_logs["endereço IP"].astype(str).str.startswith(data["classes"][0]["ipPrefix"]).fillna(
+    #         False), "endereço IP"] = "omitted"
 
     # Substituir nomes completos conforme o mapeamento do dicionário
     df_logs["Nome completo"] = df_logs["Nome completo"].map(mapping_dict).fillna(df_logs["Nome completo"])
@@ -239,8 +255,24 @@ for z, linha in df_faltas.iterrows():  ###### para cada aluno da turma
             fim = pd.to_datetime(dia_aula_fim, format='%d/%m/%Y %H:%M')
             linhas_filtradas = df_filtro[(df_filtro['Hora'] >= inicio) & (df_filtro['Hora'] <= fim)]
 
+            # if len(linhas_filtradas):
+            #     filtro = linhas_filtradas[linhas_filtradas['endereço IP'].str.contains(lin[2])]
+            #     if len(filtro):  # verifica IP do lab
+            #         nova_linha[dia_aula.split()[0]] = len(filtro)
+            #         print(len(filtro), end=" ")
+
             if len(linhas_filtradas):
-                filtro = linhas_filtradas[linhas_filtradas['endereço IP'].str.contains(lin[2])]
+                # 1. Recupera a string de IPs e limpa espaços (ex: "172.17.85, 2801:a4...")
+                ip_raw = str(lin[2])
+                lista_ips = [ip.strip() for ip in ip_raw.split(',')]
+
+                # 2. Cria uma expressão regular (Regex) unindo os prefixos com o operador "OU" (|)
+                # Resultado: "172.17.85|2801:a4:101:214"
+                padrao_regex = '|'.join(lista_ips)
+
+                # 3. Filtra o log verificando se o IP contém QUALQUER um dos prefixos
+                filtro = linhas_filtradas[linhas_filtradas['endereço IP'].str.contains(padrao_regex, na=False)]
+
                 if len(filtro):  # verifica IP do lab
                     nova_linha[dia_aula.split()[0]] = len(filtro)
                     print(len(filtro), end=" ")
@@ -302,7 +334,8 @@ def somar_acessos(linha):
 
     # Converter os valores das colunas de acessos para numéricos
     # Substituir NaN por 0 antes da conversão
-    acessos_numericos = acessos.replace(np.nan, 0).astype(np.int64)
+    #acessos_numericos = acessos.replace(np.nan, 0).astype(np.int64)
+    acessos_numericos = acessos.fillna(0).astype(np.int64)
 
     # Calcular a soma total dos acessos para a linha
     soma_total = acessos_numericos.values.sum()
@@ -366,7 +399,8 @@ def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
         cont = 0
         for index, row in data.sort_values(by='RA').iterrows():
             conc = "" if str(row["Conceito"]) == "-" else ": " + str(row["Conceito"])
-            text_value = str(int(row[coluna_y])) if not np.isnan(row[coluna_y]) else "0"
+            #text_value = str(int(row[coluna_y])) if not np.isnan(row[coluna_y]) else "0"
+            text_value = str(int(row[coluna_y])) if pd.notnull(row[coluna_y]) else "0"
             conc = text_value + conc
 
             ax.text(cont, row[coluna_y] + 0.1, conc, ha='center', va='bottom', fontsize=8)
@@ -382,7 +416,8 @@ def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
     else:
         for index, row in data.iterrows():
             conc = "" if str(row["Conceito"]) == "-" else ": " + str(row["Conceito"])
-            text_value = str(int(row[coluna_y])) if not np.isnan(row[coluna_y]) else "0"
+            # text_value = str(int(row[coluna_y])) if not np.isnan(row[coluna_y]) else "0"
+            text_value = str(int(row[coluna_y])) if pd.notnull(row[coluna_y]) else "0"
             conc = text_value + conc
 
             ax.text(index, row[coluna_y] + 0.1, conc, ha='center', va='bottom', fontsize=8)
@@ -503,4 +538,433 @@ for z, linha in df_faltas.iterrows():  # para cada aluno da turma
         print(f"{linha[3]:^8}  {linha[4]:^3}")
 df_faltas.to_csv(arq_faltas, index=False)
 
+########################################################################
+# Cria página html
+########################################################################
+import pandas as pd
+import json
+import os
 
+# Carrega o CSV
+import glob
+
+# Procura arquivos que comecem com "faltas_notas_" e terminem com ".csv"
+arquivos_csv = glob.glob(userPath + 'report/presenca_notas_*.csv')
+
+if not arquivos_csv:
+    raise FileNotFoundError("Nenhum arquivo 'faltas_notas_*.csv' encontrado.")
+
+# Lê o primeiro arquivo encontrado
+df = pd.read_csv(arquivos_csv[0])
+
+df = df.drop(columns=['Email'])
+df = df.drop(columns=['Nome'])
+df = df.fillna('-')  # Substitui todos os NaNs por '-'
+
+import matplotlib.pyplot as plt
+
+# Conta os conceitos e calcula as porcentagens
+conceitos = df['Conceito'].value_counts(normalize=True).sort_index() * 100
+
+# Gera o gráfico
+plt.figure(figsize=(6,4))
+bars = plt.bar(conceitos.index, conceitos.values, color='skyblue', edgecolor='black')
+
+# Adiciona os rótulos de porcentagem em cima de cada barra
+for bar, pct in zip(bars, conceitos.values):
+    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f'{pct:.1f}%', ha='center', fontsize=10)
+
+plt.title('Distribuição de Conceitos (%)')
+plt.xlabel('Conceito')
+plt.ylabel('Porcentagem (%)')
+plt.ylim(0, conceitos.max() + 10)  # espaço para os rótulos
+plt.xticks(rotation=0)
+plt.tight_layout()
+
+# Salva a imagem
+plt.savefig(userPath + 'report/histograma_Conceito.png')
+plt.close()
+
+
+# Converte o DataFrame em JSON compatível com JavaScript
+dados_json = df.to_dict(orient='records')
+dados_str = json.dumps(dados_json, ensure_ascii=False).replace("</", "<\\/")  # evita quebra de </script>
+
+# Define a senha
+senha_admin = "admin123"
+
+# Parte inicial do HTML
+html_content = f"""<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Consulta de Acessos</title>
+    <style>
+        body {{ font-family: Arial; padding: 20px; }}
+        table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+        th, td {{ border: 1px solid #ccc; padding: 8px; text-align: center; }}
+        th {{ background-color: #f2f2f2; }}
+        input[type="text"] {{ width: 300px; padding: 5px; }}
+    </style>
+</head>
+<body>
+    <h2>Consulta de Acessos</h2>
+    <p>Digite seu <b>RA</b>:</p>
+    <input type="text" id="entrada" placeholder="RA ou senha">
+    <button onclick="mostrarDados()">Consultar</button>
+    <div id="resultado"></div>
+
+    <script>
+        const dados = {dados_str};
+
+        function gerarTabela(dadosFiltrados) {{
+            if (dadosFiltrados.length === 0) {{
+                return "<p style='color:red;'>Nenhum dado encontrado.</p>";
+            }}
+
+            let colunas = Object.keys(dadosFiltrados[0]);
+            let html = "<table><thead><tr>";
+            colunas.forEach(col => html += `<th>${{col}}</th>`);
+            html += "</tr></thead><tbody>";
+            dadosFiltrados.forEach(linha => {{
+                html += "<tr>";
+                colunas.forEach(col => {{
+                    html += `<td>${{linha[col] ?? ""}}</td>`;
+                }});
+                html += "</tr>";
+            }});
+            html += "</tbody></table>";
+            return html;
+        }}
+
+        function mostrarDados() {{
+            let entrada = document.getElementById("entrada").value.trim();
+            let resultado = document.getElementById("resultado");
+
+            if (entrada === "{senha_admin}") {{
+                resultado.innerHTML = gerarTabela(dados);
+                document.getElementById("graficos").style.display = 'block';
+            }} else {{
+                let filtrado = dados.filter(item => item.RA && item.RA.toString() === entrada);
+                resultado.innerHTML = gerarTabela(filtrado);
+                document.getElementById("graficos").style.display = 'none';
+            }}
+        }}
+    </script>
+"""
+
+# Lista imagens PNG, exceto as que terminam com '_Nome.png'
+#imagens = [f for f in os.listdir() if f.endswith('.png') and not f.endswith('_Nome.png')]
+import os
+
+# Caminho onde estão as imagens
+caminho_imagens = os.path.join(userPath, 'report')
+
+# Lista imagens PNG na pasta, exceto as que terminam com '_Nome.png'
+imagens = [
+    os.path.join('report', f)  # manter o caminho relativo para uso no HTML
+    for f in os.listdir(caminho_imagens)
+    if f.endswith('.png') and not f.endswith('_Nome.png')
+]
+
+# Gera HTML para imagens
+html_imagens = "<div id='graficos' style='display:none;'>\n<h2>Gráficos</h2>\n<div style='display:flex; flex-wrap:wrap;'>\n"
+for img in imagens:
+    img = img.split('/')[1]
+    html_imagens += f"<div style='margin:10px;'><img src='{img}' alt='{img}' style='max-width:1000px;'><br><small>{img}</small></div>\n"
+html_imagens += "</div>\n</div>\n</body>\n</html>"
+
+# Adiciona as imagens ao HTML
+html_content += html_imagens
+
+# Salva o HTML
+with open(userPath + f'report/index_senha_{senha_admin}.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print(f"✅ Arquivo 'index_senha_{senha_admin}.html' gerado com sucesso!")
+
+
+
+########################################################################
+# Cria SEGUNDA página html ultra-simplificada (para Moodle)
+########################################################################
+
+# Dados para o HTML simplificado
+dados_json_simples = df.to_dict(orient='records')
+dados_str_simples = json.dumps(dados_json_simples, ensure_ascii=False).replace("</", "<\\/")
+
+# HTML ultra-simplificado que sobrevive ao Moodle
+html_simples = f'''<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Consulta de Acessos</title>
+    <style>
+        /* CSS inline para sobreviver ao Moodle */
+        body {{
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            max-width: 1000px;
+            margin: auto;
+        }}
+        .card {{
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }}
+        .header {{
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }}
+        .stats {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }}
+        .stat-box {{
+            flex: 1;
+            min-width: 150px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }}
+        .periodo-linha {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 5px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #e74c3c;
+        }}
+        .periodo-linha:nth-child(even) {{
+            background: #f0f0f0;
+        }}
+        .btn {{
+            background: #27ae60;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }}
+        .btn:hover {{
+            background: #219653;
+        }}
+        .input-text {{
+            width: 300px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }}
+        .graficos-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }}
+        .grafico-item {{
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+        .grafico-item img {{
+            width: 100%;
+            height: auto;
+        }}
+        .sem-acesso {{
+            color: #95a5a6;
+            font-style: italic;
+        }}
+        .com-acesso {{
+            color: #27ae60;
+            font-weight: bold;
+        }}
+        .alerta {{
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <h2 style="margin: 0;">📊 Consulta de Acessos</h2>
+        </div>
+        
+        <p><strong>Digite seu RA:</strong></p>
+        <input type="text" id="entrada" class="input-text" placeholder="Ex: 12345678901">
+        <button id="consultarBtn" class="btn">🔍 Consultar</button>
+        
+        <div id="resultado"></div>
+        
+        <div id="graficos" style="display: none;">
+            <hr>
+            <h3>📈 Gráficos Gerais</h3>
+            <div class="graficos-grid">
+                <div class="grafico-item">
+                    <img src="report/alunos_Total_Acessos_RA.png" alt="Total de Acessos">
+                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Total de Acessos</strong></p>
+                </div>
+                <div class="grafico-item">
+                    <img src="report/alunos_Acessos_Sem_Filtros_RA.png" alt="Acessos Sem Filtros">
+                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Acessos Sem Filtros</strong></p>
+                </div>
+                <div class="grafico-item">
+                    <img src="report/alunos_Total_Presencas_RA.png" alt="Total de Presenças">
+                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Total de Presenças</strong></p>
+                </div>
+                <div class="grafico-item">
+                    <img src="report/histograma_Conceito.png" alt="Distribuição de Conceitos">
+                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Distribuição de Conceitos</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dados dos alunos
+        const dados = {dados_str_simples};
+
+        function formatarNumero(num) {{
+            if (typeof num === 'number') {{
+                return num % 1 === 0 ? num.toString() : num.toFixed(1);
+            }}
+            return num || "-";
+        }}
+
+        function gerarHTMLAluno(aluno) {{
+            // Identificar colunas de período
+            const periodos = Object.keys(aluno)
+                .filter(key => key.includes('-') && key.includes('/'))
+                .sort();
+            
+            let html = `
+                <div class="card" style="margin-top: 20px;">
+                    <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
+                        🎓 Aluno: ${{aluno.RA}}
+                    </h3>
+                    
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div style="font-size: 12px; color: #7f8c8d;">Acessos Sem Filtros</div>
+                            <div style="font-size: 24px; color: #3498db; font-weight: bold;">${{formatarNumero(aluno.Acessos_Sem_Filtros)}}</div>
+                        </div>
+                        <div class="stat-box" style="border-left-color: #2ecc71;">
+                            <div style="font-size: 12px; color: #7f8c8d;">Total de Presenças</div>
+                            <div style="font-size: 24px; color: #2ecc71; font-weight: bold;">${{aluno.Total_Presencas}}</div>
+                        </div>
+                        <div class="stat-box" style="border-left-color: ${{aluno.Faltas > 0 ? '#e74c3c' : '#2ecc71'}};">
+                            <div style="font-size: 12px; color: #7f8c8d;">Faltas</div>
+                            <div style="font-size: 24px; color: ${{aluno.Faltas > 0 ? '#e74c3c' : '#2ecc71'}}; font-weight: bold;">${{aluno.Faltas}}</div>
+                        </div>
+                        <div class="stat-box" style="border-left-color: #9b59b6;">
+                            <div style="font-size: 12px; color: #7f8c8d;">Conceito</div>
+                            <div style="font-size: 24px; color: #9b59b6; font-weight: bold;">${{aluno.Conceito}}</div>
+                        </div>
+                    </div>
+                    
+                    <h4 style="margin-top: 25px; color: #2c3e50;">📅 Acessos por Período</h4>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; padding: 10px;">
+            `;
+            
+            if (periodos.length > 0) {{
+                periodos.forEach(periodo => {{
+                    const valor = aluno[periodo];
+                    const temAcesso = valor !== "-" && valor !== "";
+                    html += `
+                        <div class="periodo-linha">
+                            <div style="font-weight: bold;">${{periodo}}</div>
+                            <div class="${{temAcesso ? 'com-acesso' : 'sem-acesso'}}">
+                                ${{temAcesso ? valor + " acessos" : "Sem acesso"}}
+                            </div>
+                        </div>
+                    `;
+                }});
+            }} else {{
+                html += `<div class="alerta">Nenhum período com dados registrados.</div>`;
+            }}
+            
+            html += `</div></div>`;
+            return html;
+        }}
+
+        function gerarHTMLAdmin(dados) {{
+            let html = `
+                <div class="card" style="margin-top: 20px;">
+                    <div style="background: #34495e; color: white; padding: 10px 15px; border-radius: 4px; margin-bottom: 15px;">
+                        👨‍💼 Modo Administrador - ${{dados.length}} alunos cadastrados
+                    </div>
+            `;
+            
+            dados.forEach((aluno, index) => {{
+                if (index > 0) html += `<hr style="margin: 20px 0; border: none; border-top: 1px dashed #ddd;">`;
+                html += gerarHTMLAluno(aluno);
+            }});
+            
+            html += `</div>`;
+            return html;
+        }}
+
+        function mostrarDados() {{
+            let entrada = document.getElementById("entrada").value.trim();
+            let resultado = document.getElementById("resultado");
+            let graficosDiv = document.getElementById("graficos");
+
+            if (entrada === "admin123") {{
+                resultado.innerHTML = gerarHTMLAdmin(dados);
+                graficosDiv.style.display = 'block';
+            }} else {{
+                let filtrado = dados.filter(item => item.RA && item.RA.toString() === entrada);
+                if (filtrado.length > 0) {{
+                    resultado.innerHTML = gerarHTMLAluno(filtrado[0]);
+                }} else {{
+                    resultado.innerHTML = `
+                        <div class="card" style="margin-top: 20px; text-align: center;">
+                            <div style="font-size: 48px;">❌</div>
+                            <h3 style="color: #e74c3c;">RA não encontrado</h3>
+                            <p>O RA <strong>${{entrada}}</strong> não foi encontrado no sistema.</p>
+                            <p>Verifique o número e tente novamente.</p>
+                        </div>
+                    `;
+                }}
+                graficosDiv.style.display = 'none';
+            }}
+        }}
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {{
+            document.getElementById('consultarBtn').addEventListener('click', mostrarDados);
+            document.getElementById('entrada').addEventListener('keypress', function(e) {{
+                if (e.key === 'Enter') mostrarDados();
+            }});
+            
+            // Foco no campo de entrada
+            document.getElementById('entrada').focus();
+        }});
+    </script>
+</body>
+</html>'''
+
+# Salvar o HTML simplificado
+html_simples_path = os.path.join(userPath, f'report/index_moodle_{senha_admin}.html')
+with open(html_simples_path, 'w', encoding='utf-8') as f:
+    f.write(html_simples)
+
+print(f"✅ Arquivo 'index_moodle_{senha_admin}.html' gerado com sucesso!")
