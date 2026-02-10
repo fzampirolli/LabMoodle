@@ -19,6 +19,19 @@ import warnings
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+import unicodedata
+
+def normalizar_nome(nome):
+    if not isinstance(nome, str):
+        return nome
+    # Remove espaços em branco no início/fim e converte para maiúsculas
+    nome = nome.strip().upper()
+    # Normaliza caracteres Unicode para decompor acentos
+    nfkd_form = unicodedata.normalize('NFKD', nome)
+    # Filtra apenas caracteres que não são marcas de acentuação
+    return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+
 # Verificar se a quantidade de argumentos está correta
 if len(sys.argv) < 3:
     print("Uso: python3 script.py arquivo1.csv arquivo2.xls")
@@ -163,7 +176,8 @@ df.to_csv(arq_faltas, index=False)
 df_logs = pd.read_csv(data["csvPath"])
 
 # Deixar nomes em maúsculo
-df_logs["Nome completo"] = df_logs["Nome completo"].str.upper()
+#df_logs["Nome completo"] = df_logs["Nome completo"].str.upper()
+df_logs["Nome completo"] = df_logs["Nome completo"].apply(normalizar_nome) # NOVO
 df_logs["Hora"] = pd.to_datetime(df_logs["Hora"], format="%d/%m/%y, %H:%M:%S")
 
 if data["omit_data"] == "on":
@@ -227,7 +241,8 @@ datas_aulas = df_dias['Inicio'].str.split().str[0].tolist()
 df_lista_presenca = pd.DataFrame(columns=["RA", "Nome", "Email"] + datas_aulas)
 
 df_faltas = pd.read_csv(arq_faltas)
-df_faltas["Nome"] = df_faltas["Nome"].str.upper()
+#df_faltas["Nome"] = df_faltas["Nome"].str.upper()
+df_faltas["Nome"] = df_faltas["Nome"].apply(normalizar_nome) # NOVO
 print("Arquivo gerado:", arq_faltas)
 print(f"\nACESSOS DURANTE AS AULAS DE LABORATÓRIO:\n{'num':^3} {'RA':^10} {'Nome':^40} {'Email':^45}{'Acessos'}")
 for z, linha in df_faltas.iterrows():  ###### para cada aluno da turma
@@ -683,8 +698,6 @@ with open(userPath + f'report/index_senha_{senha_admin}.html', 'w', encoding='ut
 
 print(f"✅ Arquivo 'index_senha_{senha_admin}.html' gerado com sucesso!")
 
-
-
 ########################################################################
 # Cria SEGUNDA página html ultra-simplificada (para Moodle)
 ########################################################################
@@ -699,147 +712,21 @@ html_simples = f'''<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <title>Consulta de Acessos</title>
-    <style>
-        /* CSS inline para sobreviver ao Moodle */
-        body {{
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f5f5f5;
-            max-width: 1000px;
-            margin: auto;
-        }}
-        .card {{
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
-        .header {{
-            background: #2c3e50;
-            color: white;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }}
-        .stats {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin: 20px 0;
-        }}
-        .stat-box {{
-            flex: 1;
-            min-width: 150px;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            border-left: 4px solid #3498db;
-        }}
-        .periodo-linha {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            margin-bottom: 5px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            border-left: 4px solid #e74c3c;
-        }}
-        .periodo-linha:nth-child(even) {{
-            background: #f0f0f0;
-        }}
-        .btn {{
-            background: #27ae60;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }}
-        .btn:hover {{
-            background: #219653;
-        }}
-        .input-text {{
-            width: 300px;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            margin-right: 10px;
-        }}
-        .graficos-grid {{
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 20px;
-        }}
-        .grafico-item {{
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }}
-        .grafico-item img {{
-            width: 100%;
-            height: auto;
-        }}
-        .sem-acesso {{
-            color: #95a5a6;
-            font-style: italic;
-        }}
-        .com-acesso {{
-            color: #27ae60;
-            font-weight: bold;
-        }}
-        .alerta {{
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 10px 0;
-        }}
-    </style>
 </head>
-<body>
-    <div class="card">
-        <div class="header">
-            <h2 style="margin: 0;">📊 Consulta de Acessos</h2>
+<body style="font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5;">
+    <div style="background: white; padding: 20px; border-radius: 8px; max-width: 1200px; margin: 0 auto;">
+        <div style="background: #2c3e50; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: white;">📊 Consulta de Acessos</h2>
         </div>
         
         <p><strong>Digite seu RA:</strong></p>
-        <input type="text" id="entrada" class="input-text" placeholder="Ex: 12345678901">
-        <button id="consultarBtn" class="btn">🔍 Consultar</button>
+        <input type="text" id="entrada" style="width: 300px; padding: 10px; border: 2px solid #ddd; border-radius: 4px; margin-right: 10px; font-size: 14px;" placeholder="Ex: 12345678901">
+        <button id="consultarBtn" style="background: #27ae60; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">🔍 Consultar</button>
         
         <div id="resultado"></div>
-        
-        <div id="graficos" style="display: none;">
-            <hr>
-            <h3>📈 Gráficos Gerais</h3>
-            <div class="graficos-grid">
-                <div class="grafico-item">
-                    <img src="report/alunos_Total_Acessos_RA.png" alt="Total de Acessos">
-                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Total de Acessos</strong></p>
-                </div>
-                <div class="grafico-item">
-                    <img src="report/alunos_Acessos_Sem_Filtros_RA.png" alt="Acessos Sem Filtros">
-                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Acessos Sem Filtros</strong></p>
-                </div>
-                <div class="grafico-item">
-                    <img src="report/alunos_Total_Presencas_RA.png" alt="Total de Presenças">
-                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Total de Presenças</strong></p>
-                </div>
-                <div class="grafico-item">
-                    <img src="report/histograma_Conceito.png" alt="Distribuição de Conceitos">
-                    <p style="text-align: center; margin: 5px 0; font-size: 14px;"><strong>Distribuição de Conceitos</strong></p>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
-        // Dados dos alunos
         const dados = {dados_str_simples};
 
         function formatarNumero(num) {{
@@ -850,112 +737,110 @@ html_simples = f'''<!DOCTYPE html>
         }}
 
         function gerarHTMLAluno(aluno) {{
-            // Identificar colunas de período
             const periodos = Object.keys(aluno)
                 .filter(key => key.includes('-') && key.includes('/'))
                 .sort();
             
-            let html = `
-                <div class="card" style="margin-top: 20px;">
-                    <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-                        🎓 Aluno: ${{aluno.RA}}
-                    </h3>
-                    
-                    <div class="stats">
-                        <div class="stat-box">
-                            <div style="font-size: 12px; color: #7f8c8d;">Acessos Sem Filtros</div>
-                            <div style="font-size: 24px; color: #3498db; font-weight: bold;">${{formatarNumero(aluno.Acessos_Sem_Filtros)}}</div>
-                        </div>
-                        <div class="stat-box" style="border-left-color: #2ecc71;">
-                            <div style="font-size: 12px; color: #7f8c8d;">Total de Presenças</div>
-                            <div style="font-size: 24px; color: #2ecc71; font-weight: bold;">${{aluno.Total_Presencas}}</div>
-                        </div>
-                        <div class="stat-box" style="border-left-color: ${{aluno.Faltas > 0 ? '#e74c3c' : '#2ecc71'}};">
-                            <div style="font-size: 12px; color: #7f8c8d;">Faltas</div>
-                            <div style="font-size: 24px; color: ${{aluno.Faltas > 0 ? '#e74c3c' : '#2ecc71'}}; font-weight: bold;">${{aluno.Faltas}}</div>
-                        </div>
-                        <div class="stat-box" style="border-left-color: #9b59b6;">
-                            <div style="font-size: 12px; color: #7f8c8d;">Conceito</div>
-                            <div style="font-size: 24px; color: #9b59b6; font-weight: bold;">${{aluno.Conceito}}</div>
-                        </div>
-                    </div>
-                    
-                    <h4 style="margin-top: 25px; color: #2c3e50;">📅 Acessos por Período</h4>
-                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 5px; padding: 10px;">
-            `;
+            let html = '<div style="background: white; padding: 20px; border: 2px solid #ddd; border-radius: 8px; margin-top: 20px;">';
+            
+            // Cabeçalho
+            html += '<h3 style="color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; margin-top: 0;">🎓 Aluno: ' + aluno.RA + '</h3>';
+            
+            // Estatísticas em tabela
+            html += '<table style="width: 100%; border-collapse: separate; border-spacing: 10px; margin: 20px 0;">';
+            html += '<tr>';
+            html += '<td style="background: #ecf0f1; padding: 15px; border-left: 5px solid #3498db; border-radius: 5px; text-align: center;">';
+            html += '<div style="font-size: 11px; color: #7f8c8d; margin-bottom: 8px;">Acessos Sem Filtros</div>';
+            html += '<div style="font-size: 28px; color: #3498db; font-weight: bold;">' + formatarNumero(aluno.Acessos_Sem_Filtros) + '</div>';
+            html += '</td>';
+            
+            html += '<td style="background: #ecf0f1; padding: 15px; border-left: 5px solid #2ecc71; border-radius: 5px; text-align: center;">';
+            html += '<div style="font-size: 11px; color: #7f8c8d; margin-bottom: 8px;">Total de Presenças</div>';
+            html += '<div style="font-size: 28px; color: #2ecc71; font-weight: bold;">' + aluno.Total_Presencas + '</div>';
+            html += '</td>';
+            
+            let corFaltas = aluno.Faltas > 0 ? '#e74c3c' : '#2ecc71';
+            html += '<td style="background: #ecf0f1; padding: 15px; border-left: 5px solid ' + corFaltas + '; border-radius: 5px; text-align: center;">';
+            html += '<div style="font-size: 11px; color: #7f8c8d; margin-bottom: 8px;">Faltas</div>';
+            html += '<div style="font-size: 28px; color: ' + corFaltas + '; font-weight: bold;">' + aluno.Faltas + '</div>';
+            html += '</td>';
+            
+            html += '<td style="background: #ecf0f1; padding: 15px; border-left: 5px solid #9b59b6; border-radius: 5px; text-align: center;">';
+            html += '<div style="font-size: 11px; color: #7f8c8d; margin-bottom: 8px;">Conceito</div>';
+            html += '<div style="font-size: 28px; color: #9b59b6; font-weight: bold;">' + aluno.Conceito + '</div>';
+            html += '</td>';
+            html += '</tr></table>';
+            
+            // Períodos
+            html += '<h4 style="margin-top: 30px; color: #2c3e50; border-bottom: 2px solid #ddd; padding-bottom: 8px;">📅 Acessos por Período</h4>';
+            html += '<div style="max-height: 400px; overflow-y: auto; border: 2px solid #ddd; border-radius: 5px; padding: 5px; background: #fafafa;">';
+            html += '<table style="width: 100%; border-collapse: collapse;">';
             
             if (periodos.length > 0) {{
-                periodos.forEach(periodo => {{
+                periodos.forEach((periodo, index) => {{
                     const valor = aluno[periodo];
                     const temAcesso = valor !== "-" && valor !== "";
-                    html += `
-                        <div class="periodo-linha">
-                            <div style="font-weight: bold;">${{periodo}}</div>
-                            <div class="${{temAcesso ? 'com-acesso' : 'sem-acesso'}}">
-                                ${{temAcesso ? valor + " acessos" : "Sem acesso"}}
-                            </div>
-                        </div>
-                    `;
+                    const bgColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+                    const textColor = temAcesso ? '#27ae60' : '#95a5a6';
+                    const fontWeight = temAcesso ? 'bold' : 'normal';
+                    const fontStyle = temAcesso ? 'normal' : 'italic';
+                    
+                    html += '<tr style="background: ' + bgColor + ';">';
+                    html += '<td style="padding: 12px; font-weight: bold; border-bottom: 1px solid #e0e0e0; width: 35%;">' + periodo + '</td>';
+                    html += '<td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: right; color: ' + textColor + '; font-weight: ' + fontWeight + '; font-style: ' + fontStyle + ';">';
+                    html += temAcesso ? valor + ' acessos' : 'Sem acesso';
+                    html += '</td>';
+                    html += '</tr>';
                 }});
             }} else {{
-                html += `<div class="alerta">Nenhum período com dados registrados.</div>`;
+                html += '<tr><td colspan="2" style="padding: 20px; text-align: center; background: #fff3cd; color: #856404; border-radius: 4px;">Nenhum período com dados registrados.</td></tr>';
             }}
             
-            html += `</div></div>`;
+            html += '</table></div></div>';
             return html;
         }}
 
         function gerarHTMLAdmin(dados) {{
-            let html = `
-                <div class="card" style="margin-top: 20px;">
-                    <div style="background: #34495e; color: white; padding: 10px 15px; border-radius: 4px; margin-bottom: 15px;">
-                        👨‍💼 Modo Administrador - ${{dados.length}} alunos cadastrados
-                    </div>
-            `;
+            let html = '<div style="background: white; padding: 20px; border: 2px solid #ddd; border-radius: 8px; margin-top: 20px;">';
+            html += '<div style="background: #34495e; color: white; padding: 12px 15px; border-radius: 4px; margin-bottom: 20px; font-weight: bold;">';
+            html += '👨‍💼 Modo Administrador - ' + dados.length + ' alunos cadastrados';
+            html += '</div>';
             
             dados.forEach((aluno, index) => {{
-                if (index > 0) html += `<hr style="margin: 20px 0; border: none; border-top: 1px dashed #ddd;">`;
+                if (index > 0) html += '<hr style="margin: 30px 0; border: none; border-top: 2px dashed #bdc3c7;">';
                 html += gerarHTMLAluno(aluno);
             }});
             
-            html += `</div>`;
+            html += '</div>';
             return html;
         }}
 
         function mostrarDados() {{
             let entrada = document.getElementById("entrada").value.trim();
             let resultado = document.getElementById("resultado");
-            let graficosDiv = document.getElementById("graficos");
 
             if (entrada === "admin123") {{
                 resultado.innerHTML = gerarHTMLAdmin(dados);
-                graficosDiv.style.display = 'block';
             }} else {{
                 let filtrado = dados.filter(item => item.RA && item.RA.toString() === entrada);
                 if (filtrado.length > 0) {{
                     resultado.innerHTML = gerarHTMLAluno(filtrado[0]);
                 }} else {{
-                    resultado.innerHTML = `
-                        <div class="card" style="margin-top: 20px; text-align: center;">
-                            <div style="font-size: 48px;">❌</div>
-                            <h3 style="color: #e74c3c;">RA não encontrado</h3>
-                            <p>O RA <strong>${{entrada}}</strong> não foi encontrado no sistema.</p>
-                            <p>Verifique o número e tente novamente.</p>
-                        </div>
-                    `;
+                    resultado.innerHTML = '<div style="background: white; padding: 30px; border: 2px solid #e74c3c; border-radius: 8px; margin-top: 20px; text-align: center;">' +
+                        '<div style="font-size: 48px; margin-bottom: 15px;">❌</div>' +
+                        '<h3 style="color: #e74c3c; margin: 10px 0;">RA não encontrado</h3>' +
+                        '<p style="margin: 10px 0;">O RA <strong>' + entrada + '</strong> não foi encontrado no sistema.</p>' +
+                        '<p style="margin: 10px 0; color: #7f8c8d;">Verifique o número e tente novamente.</p>' +
+                        '</div>';
                 }}
-                graficosDiv.style.display = 'none';
             }}
         }}
 
-        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {{
             document.getElementById('consultarBtn').addEventListener('click', mostrarDados);
             document.getElementById('entrada').addEventListener('keypress', function(e) {{
                 if (e.key === 'Enter') mostrarDados();
             }});
-            
-            // Foco no campo de entrada
             document.getElementById('entrada').focus();
         }});
     </script>
