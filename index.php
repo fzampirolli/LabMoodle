@@ -833,7 +833,7 @@
             </p>
 
             <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">
-                <img src="http://mctest.ufabc.edu.br:8000/static/agplv3.png" alt="Licença AGPL v3" width="50">
+                <img src="https://mctest.ufabc.edu.br/static/agplv3.png" alt="Licença AGPL v3" width="50">
             </a>
 
             <p>

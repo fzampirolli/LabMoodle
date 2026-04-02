@@ -1,0 +1,27 @@
+# --- Ambiente Python ---
+.venv/
+__pycache__/
+*.py[cod]
+
+# --- Arquivos do Sistema Operacional (macOS) ---
+.DS_Store
+
+# --- Pastas Temporárias e Relatórios ---
+# Ignora a pasta onde o PHP faz o upload e o script salva os processamentos
+tmp/
+# Ignora os relatórios gerados para não subir dados de alunos ao Git
+reports/
+# Se houver uma pasta report dentro de tmp (como indicado no seu script)
+**/report/
+
+# --- Arquivos de Dados e Planilhas ---
+# Ignora arquivos CSV e XLS que podem conter dados reais/privados
+*.csv
+*.xls
+*.xlsx
+
+# --- Exceções ---
+# Permite que os arquivos de exemplo e scripts de dados fake sejam mantidos
+!dados_fake.csv
+!dados_fake.py
+!dados.py

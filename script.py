@@ -4,6 +4,7 @@ sudo sed -i 's/post_max_size = .*/post_max_size = 110M/' /etc/php/8.1/apache2/ph
 sudo service apache2 restart
 
 '''
+import re
 import os
 import csv
 from datetime import datetime, timedelta
@@ -18,6 +19,11 @@ import warnings
 
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings('ignore', message='.*Downcasting object dtype.*')
+# Silencia os avisos de depreciação do Pandas (FutureWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+# Opt-in para o novo comportamento de downcasting do Pandas
+pd.set_option('future.no_silent_downcasting', True)
 
 import unicodedata
 
@@ -316,10 +322,26 @@ for col_antiga, col_nova in novos_nomes_colunas.items():
 df_lista_presenca['Total_Presencas'] = 2 * (df_lista_presenca.iloc[:, 3:-1] > 0).sum(axis=1)
 
 # número máximo de presença
-MAX_FALTAS = df_lista_presenca['Total_Presencas'].max()
+#MAX_FALTAS = df_lista_presenca['Total_Presencas'].max()
 
 # Calcula o número de faltas para cada aluno e atualiza o DataFrame df_lista_participa
+#df_lista_presenca['Faltas'] = MAX_FALTAS - df_lista_presenca['Total_Presencas']
+
+# --- NOVA LÓGICA PARA MAX_FALTAS (IGNORANDO FERIADOS) ---
+
+# 1. Identifica quais colunas de data (entre a 3ª e a penúltima) 
+# tiveram pelo menos um acesso de QUALQUER aluno.
+colunas_com_atividade = (df_lista_presenca.iloc[:, 3:-1] > 0).any()
+
+# 2. Conta quantos dias "reais" de aula aconteceram (onde houve log)
+num_aulas_efetivas = colunas_com_atividade.sum()
+
+# 3. Define o máximo baseado apenas nessas aulas que existiram de fato
+MAX_FALTAS = 2 * num_aulas_efetivas
+
+# 4. Calcula as faltas individuais usando o teto corrigido
 df_lista_presenca['Faltas'] = MAX_FALTAS - df_lista_presenca['Total_Presencas']
+
 
 # Realizar a junção dos DataFrames usando a coluna 'Nome' como chave
 df_merged = pd.merge(df_lista_presenca, df_faltas[['Nome', 'Resultado']], on='Nome', how='left')
@@ -333,6 +355,107 @@ df_lista_presenca = df_merged.drop('Resultado', axis=1)
 # salva arquivo
 df_lista_presenca.to_csv(arq_lista_presenca, index=False)
 
+
+########################################################################
+# Detecção de fraude: contas diferentes no mesmo IP durante aulas
+########################################################################
+print("\n" + "="*70)
+print("POSSÍVEL FRAUDE: CONTAS DIFERENTES NO MESMO IP DURANTE AULAS")
+print("="*70)
+
+alertas_fraude = []  # lista de dicts com detalhes de cada suspeita
+
+for _, aula in df_dias.iterrows():
+    inicio_aula = pd.to_datetime(aula['Inicio'], format='%d/%m/%Y %H:%M')
+    fim_aula    = pd.to_datetime(aula['Fim'],    format='%d/%m/%Y %H:%M')
+    ip_prefix   = str(aula['IP'])
+    lista_prefixos = [p.strip() for p in ip_prefix.split(',')]
+    padrao_lab  = '|'.join([re.escape(p) for p in lista_prefixos])
+
+    # Filtra log apenas dentro da janela desta aula e apenas IPs do lab
+    mask_tempo = (df_logs['Hora'] >= inicio_aula) & (df_logs['Hora'] <= fim_aula)
+    mask_ip    = df_logs['endereço IP'].astype(str).str.contains(padrao_lab, na=False)
+    df_janela  = df_logs[mask_tempo & mask_ip].copy()
+
+    if df_janela.empty:
+        continue
+
+    # Remove entradas sem nome real ('-' e valor padrao do campo "Usuario afetado" no Moodle)
+    df_janela = df_janela[df_janela['Nome completo'].str.strip() != '-']
+
+    if df_janela.empty:
+        continue
+
+    # Para cada IP exato, verificar quantos alunos distintos o usaram
+    por_ip = df_janela.groupby('endereço IP')['Nome completo'].unique().reset_index()
+    por_ip.columns = ['IP', 'Alunos']
+    suspeitos = por_ip[por_ip['Alunos'].apply(len) > 1]
+
+    # for _, row in suspeitos.iterrows():
+    #     alunos_lista = sorted(row['Alunos'].tolist())
+    #     print(f"\n⚠️  Aula: {aula['Inicio']} → {aula['Fim']}")
+    #     print(f"   IP compartilhado: {row['IP']}")
+    #     print(f"   Contas detectadas ({len(alunos_lista)}):")
+    #     for a in alunos_lista:
+    #         # Conta quantos eventos cada aluno gerou neste IP nesta aula
+    #         n = len(df_janela[(df_janela['endereço IP'] == row['IP']) &
+    #                           (df_janela['Nome completo'] == a)])
+    #         print(f"     • {a}  ({n} evento{'s' if n > 1 else ''})")
+
+    #     alertas_fraude.append({
+    #         'Aula_Inicio': aula['Inicio'],
+    #         'Aula_Fim':    aula['Fim'],
+    #         'IP':          row['IP'],
+    #         'Alunos':      ' | '.join(alunos_lista),
+    #         'Num_Contas':  len(alunos_lista),
+    #     })
+    for _, row in suspeitos.iterrows():
+        alunos_lista = sorted(row['Alunos'].tolist())
+        
+        # --- NOVO: Criar lista com Nome e Contagem de Eventos ---
+        detalhes_alunos = []
+        for a in alunos_lista:
+            # Conta quantos eventos cada aluno gerou neste IP nesta aula
+            n_eventos = len(df_janela[(df_janela['endereço IP'] == row['IP']) & 
+                                      (df_janela['Nome completo'] == a)])
+            detalhes_alunos.append(f"{a} ({n_eventos} eventos)")
+        # -------------------------------------------------------
+
+        print(f"\n⚠️  Aula: {aula['Inicio']} → {aula['Fim']}")
+        print(f"   IP compartilhado: {row['IP']}")
+        print(f"   Contas detectadas:")
+        for d in detalhes_alunos:
+            print(f"     • {d}")
+
+        alertas_fraude.append({
+            'Aula_Inicio': aula['Inicio'],
+            'Aula_Fim':    aula['Fim'],
+            'IP':          row['IP'],
+            'Alunos':      ' | '.join(detalhes_alunos), # Agora salva com a contagem no CSV
+            'Num_Contas':  len(alunos_lista),
+        })
+
+if not alertas_fraude:
+    print("Nenhuma suspeita detectada.")
+
+# Salva CSV de alertas
+df_alertas = pd.DataFrame(alertas_fraude)
+arq_alertas = os.path.join(data["reportDir"], "alertas_fraude_" + TURMA + ".csv")
+df_alertas.to_csv(arq_alertas, index=False)
+print(f"\n✅ Relatório salvo: {arq_alertas}")
+
+# Adiciona coluna Alerta_Fraude em df_lista_presenca
+# Marca o aluno se seu nome aparece em qualquer alerta
+# nomes_suspeitos = set()
+# for alerta in alertas_fraude:
+#     for nome in alerta['Alunos'].split(' | '):
+#         nomes_suspeitos.add(nome.strip())
+
+# df_lista_presenca['Alerta_Fraude'] = df_lista_presenca['Nome'].apply(
+#     lambda n: '⚠️ SIM' if n in nomes_suspeitos else 'OK'
+# )
+# # Re-salva com a nova coluna
+# df_lista_presenca.to_csv(arq_lista_presenca, index=False)
 
 ########################################################################
 # Plotar gráfico RA vs Participação
@@ -376,7 +499,14 @@ def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
 
     # Criar o gráfico de barras
     plt.figure(figsize=(20, 12))
-    ax = sns.barplot(x=coluna_x, y=coluna_y, hue=coluna_x, data=data, palette=cores, legend=False)
+    # legend=False nao suportado em seaborn antigo (< 0.12); usar try/except
+    try:
+        ax = sns.barplot(x=coluna_x, y=coluna_y, hue=coluna_x, data=data, palette=cores, legend=False)
+    except TypeError:
+        ax = sns.barplot(x=coluna_x, y=coluna_y, hue=coluna_x, data=data, palette=cores)
+        leg = ax.get_legend()
+        if leg:
+            leg.remove()
     # Calcular a largura total do eixo x
     largura_total_x = ax.get_xlim()[1] - ax.get_xlim()[0]
     # Calcular o número de barras (categorias) no eixo x
@@ -393,7 +523,7 @@ def desenhar_grafico(data, min_absences, filter_field, coluna_y, coluna_x):
         titulo += f' (atividade: {filter_field})'
 
     if coluna_y == 'Acessos_Sem_Filtros':
-        titulo += ' - Hachura indica acessos fora da aula'
+        titulo += ' - Hachurado indica acessos fora da aula'
 
         print(titulo)
 
@@ -609,6 +739,65 @@ dados_str = json.dumps(dados_json, ensure_ascii=False).replace("</", "<\\/")  # 
 senha_admin = "admin123"
 
 # Parte inicial do HTML
+# html_content = f"""<!DOCTYPE html>
+# <html lang="pt-br">
+# <head>
+#     <meta charset="UTF-8">
+#     <title>Consulta de Acessos</title>
+#     <style>
+#         body {{ font-family: Arial; padding: 20px; }}
+#         table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
+#         th, td {{ border: 1px solid #ccc; padding: 8px; text-align: center; }}
+#         th {{ background-color: #f2f2f2; }}
+#         input[type="text"] {{ width: 300px; padding: 5px; }}
+#     </style>
+# </head>
+# <body>
+#     <h2>Consulta de Acessos</h2>
+#     <p>Digite seu <b>RA</b>:</p>
+#     <input type="text" id="entrada" placeholder="RA ou senha">
+#     <button onclick="mostrarDados()">Consultar</button>
+#     <div id="resultado"></div>
+
+#     <script>
+#         const dados = {dados_str};
+
+#         function gerarTabela(dadosFiltrados) {{
+#             if (dadosFiltrados.length === 0) {{
+#                 return "<p style='color:red;'>Nenhum dado encontrado.</p>";
+#             }}
+
+#             let colunas = Object.keys(dadosFiltrados[0]);
+#             let html = "<table><thead><tr>";
+#             colunas.forEach(col => html += `<th>${{col}}</th>`);
+#             html += "</tr></thead><tbody>";
+#             dadosFiltrados.forEach(linha => {{
+#                 html += "<tr>";
+#                 colunas.forEach(col => {{
+#                     html += `<td>${{linha[col] ?? ""}}</td>`;
+#                 }});
+#                 html += "</tr>";
+#             }});
+#             html += "</tbody></table>";
+#             return html;
+#         }}
+
+#         function mostrarDados() {{
+#             let entrada = document.getElementById("entrada").value.trim();
+#             let resultado = document.getElementById("resultado");
+
+#             if (entrada === "{senha_admin}") {{
+#                 resultado.innerHTML = gerarTabela(dados);
+#                 document.getElementById("graficos").style.display = 'block';
+#             }} else {{
+#                 let filtrado = dados.filter(item => item.RA && item.RA.toString() === entrada);
+#                 resultado.innerHTML = gerarTabela(filtrado);
+#                 document.getElementById("graficos").style.display = 'none';
+#             }}
+#         }}
+#     </script>
+# """
+# Parte inicial do HTML com lógica de ordenação
 html_content = f"""<!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -618,7 +807,10 @@ html_content = f"""<!DOCTYPE html>
         body {{ font-family: Arial; padding: 20px; }}
         table {{ border-collapse: collapse; width: 100%; margin-top: 20px; }}
         th, td {{ border: 1px solid #ccc; padding: 8px; text-align: center; }}
-        th {{ background-color: #f2f2f2; }}
+        th {{ background-color: #f2f2f2; cursor: pointer; position: relative; user-select: none; }}
+        th:hover {{ background-color: #e2e2e2; }}
+        /* Setas de indicação */
+        th::after {{ content: ' ↕'; font-size: 0.8em; color: #999; }}
         input[type="text"] {{ width: 300px; padding: 5px; }}
     </style>
 </head>
@@ -630,18 +822,47 @@ html_content = f"""<!DOCTYPE html>
     <div id="resultado"></div>
 
     <script>
-        const dados = {dados_str};
+        let dados = {dados_str};
+        let ordenacaoAsc = true;
+        let ultimaColuna = '';
+        let dadosFiltradosAtuais = [];
 
-        function gerarTabela(dadosFiltrados) {{
-            if (dadosFiltrados.length === 0) {{
+        function ordenar(coluna) {{
+            if (ultimaColuna === coluna) {{
+                ordenacaoAsc = !ordenacaoAsc;
+            }} else {{
+                ordenacaoAsc = true;
+                ultimaColuna = coluna;
+            }}
+
+            dadosFiltradosAtuais.sort((a, b) => {{
+                let valA = a[coluna] === '-' || a[coluna] === null ? -1 : a[coluna];
+                let valB = b[coluna] === '-' || b[coluna] === null ? -1 : b[coluna];
+
+                // Lógica para números vs strings
+                if (typeof valA === 'string') valA = valA.toUpperCase();
+                if (typeof valB === 'string') valB = valB.toUpperCase();
+
+                if (valA < valB) return ordenacaoAsc ? -1 : 1;
+                if (valA > valB) return ordenacaoAsc ? 1 : -1;
+                return 0;
+            }});
+
+            document.getElementById("resultado").innerHTML = gerarTabela(dadosFiltradosAtuais);
+        }}
+
+        function gerarTabela(lista) {{
+            if (lista.length === 0) {{
                 return "<p style='color:red;'>Nenhum dado encontrado.</p>";
             }}
 
-            let colunas = Object.keys(dadosFiltrados[0]);
+            let colunas = Object.keys(lista[0]);
             let html = "<table><thead><tr>";
-            colunas.forEach(col => html += `<th>${{col}}</th>`);
+            colunas.forEach(col => {{
+                html += `<th onclick="ordenar('${{col}}')">${{col}}</th>`;
+            }});
             html += "</tr></thead><tbody>";
-            dadosFiltrados.forEach(linha => {{
+            lista.forEach(linha => {{
                 html += "<tr>";
                 colunas.forEach(col => {{
                     html += `<td>${{linha[col] ?? ""}}</td>`;
@@ -657,16 +878,20 @@ html_content = f"""<!DOCTYPE html>
             let resultado = document.getElementById("resultado");
 
             if (entrada === "{senha_admin}") {{
-                resultado.innerHTML = gerarTabela(dados);
+                dadosFiltradosAtuais = [...dados]; // Copia todos os dados
+                resultado.innerHTML = gerarTabela(dadosFiltradosAtuais);
                 document.getElementById("graficos").style.display = 'block';
+                if(document.getElementById("alertas_fraude")) document.getElementById("alertas_fraude").style.display = 'block';
             }} else {{
-                let filtrado = dados.filter(item => item.RA && item.RA.toString() === entrada);
-                resultado.innerHTML = gerarTabela(filtrado);
+                dadosFiltradosAtuais = dados.filter(item => item.RA && item.RA.toString() === entrada);
+                resultado.innerHTML = gerarTabela(dadosFiltradosAtuais);
                 document.getElementById("graficos").style.display = 'none';
+                if(document.getElementById("alertas_fraude")) document.getElementById("alertas_fraude").style.display = 'none';
             }}
         }}
     </script>
 """
+
 
 # Lista imagens PNG, exceto as que terminam com '_Nome.png'
 #imagens = [f for f in os.listdir() if f.endswith('.png') and not f.endswith('_Nome.png')]
@@ -674,6 +899,33 @@ import os
 
 # Caminho onde estão as imagens
 caminho_imagens = os.path.join(userPath, 'report')
+
+# Seção de alertas de fraude no HTML
+if alertas_fraude:
+    html_alertas = "<div id='alertas_fraude' style='margin-top:30px;'>\n"
+    html_alertas += "<h2 style='color:#c0392b;'>⚠️ Alertas de Possível Fraude de Presença</h2>\n"
+    html_alertas += "<p style='color:#555;'>Situações em que <b>contas diferentes</b> acessaram o Moodle pelo <b>mesmo IP</b> durante uma aula de laboratório.</p>\n"
+    html_alertas += "<table style='border-collapse:collapse;width:100%;margin-top:10px;'>\n"
+    html_alertas += "<thead><tr style='background:#c0392b;color:white;'>"
+    html_alertas += "<th style='padding:8px;border:1px solid #aaa;'>Aula (Início)</th>"
+    html_alertas += "<th style='padding:8px;border:1px solid #aaa;'>Aula (Fim)</th>"
+    html_alertas += "<th style='padding:8px;border:1px solid #aaa;'>IP Compartilhado</th>"
+    html_alertas += "<th style='padding:8px;border:1px solid #aaa;'>Contas Detectadas</th>"
+    html_alertas += "</tr></thead><tbody>\n"
+    for i, alerta in enumerate(alertas_fraude):
+        bg = '#fdf2f2' if i % 2 == 0 else '#fce8e8'
+        nomes_fmt = '<br>'.join(alerta['Alunos'].split(' | '))
+        html_alertas += f"<tr style='background:{bg};'>"
+        html_alertas += f"<td style='padding:8px;border:1px solid #ddd;'>{alerta['Aula_Inicio']}</td>"
+        html_alertas += f"<td style='padding:8px;border:1px solid #ddd;'>{alerta['Aula_Fim']}</td>"
+        html_alertas += f"<td style='padding:8px;border:1px solid #ddd;font-family:monospace;'>{alerta['IP']}</td>"
+        html_alertas += f"<td style='padding:8px;border:1px solid #ddd;'>{nomes_fmt}</td>"
+        html_alertas += "</tr>\n"
+    html_alertas += "</tbody></table>\n</div>\n"
+else:
+    html_alertas = "<div id='alertas_fraude' style='margin-top:30px;'><h2 style='color:#27ae60;'>✅ Nenhuma suspeita de fraude detectada.</h2></div>\n"
+
+html_content += html_alertas
 
 # Lista imagens PNG na pasta, exceto as que terminam com '_Nome.png'
 imagens = [
